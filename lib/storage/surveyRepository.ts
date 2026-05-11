@@ -7,6 +7,8 @@ const TABLE_NAME = "pt_survey_submissions";
 export async function createSurveySubmission(data: SurveySubmission) {
   const supabase = getSupabaseClient();
   const payload = toInsertPayload(data);
+  console.log("Insert payload:", payload);
+
   const { data: row, error } = await supabase
     .from(TABLE_NAME)
     .insert(payload)
@@ -14,7 +16,8 @@ export async function createSurveySubmission(data: SurveySubmission) {
     .single();
 
   if (error) {
-    console.error(error);
+    console.error("Supabase insert error:", error);
+    alert(`제출 오류: ${error.message}`);
     throw error;
   }
 
