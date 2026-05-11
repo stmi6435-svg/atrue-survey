@@ -2,13 +2,48 @@ import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { SubmissionStatus, SurveySubmission } from "@/features/survey/types";
 
+export type SurveySubmissionRow = {
+  id: string;
+  created_at: string;
+  survey_type: SurveySubmission["surveyType"];
+  referral_source: string;
+  name: string;
+  phone: string;
+  age: number;
+  job: string;
+  hobby: string;
+  gender: string;
+  height_cm: number;
+  weight_kg: number;
+  fitness_experience: string;
+  goals: string[];
+  pain_areas: string[];
+  diseases: string[];
+  medical_restriction: boolean;
+  medical_restriction_detail: string;
+  activity_level: string;
+  sleep_hours: string;
+  stress_level: string;
+  meal_regularity: string;
+  weekly_workout_count: string;
+  preferred_time_zone: string;
+  preferred_time_1: string;
+  preferred_time_2: string;
+  want_to_learn: string;
+  request_to_consultant: string;
+  privacy_agreed: boolean;
+  status: SubmissionStatus;
+};
+
+export type SurveySubmissionInsert = Omit<SurveySubmissionRow, "id" | "created_at">;
+
 export type Database = {
   public: {
     Tables: {
       pt_survey_submissions: {
         Row: SurveySubmissionRow;
-        Insert: SurveySubmissionRow;
-        Update: Partial<SurveySubmissionRow>;
+        Insert: SurveySubmissionInsert;
+        Update: Partial<SurveySubmissionInsert>;
         Relationships: [];
       };
     };
@@ -17,23 +52,6 @@ export type Database = {
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };
-};
-
-type SurveySubmissionRow = {
-  id: string;
-  survey_type: SurveySubmission["surveyType"];
-  source: string;
-  basic_info: SurveySubmission["basicInfo"];
-  body_info: SurveySubmission["bodyInfo"];
-  fitness_experience: string;
-  goals: string[];
-  health: SurveySubmission["health"];
-  lifestyle: SurveySubmission["lifestyle"];
-  desired_exercises: string;
-  request_to_coach: string;
-  privacy_consent: boolean;
-  status: SubmissionStatus;
-  submitted_at: string;
 };
 
 let client: SupabaseClient<Database> | null = null;

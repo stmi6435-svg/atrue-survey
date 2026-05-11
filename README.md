@@ -30,23 +30,39 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
 
 ## Supabase 테이블 컬럼
 
-`pt_survey_submissions` 테이블은 앱 모델을 snake_case 컬럼으로 저장합니다.
+`pt_survey_submissions` 테이블은 설문 데이터를 평평한 컬럼 구조로 저장합니다.
 
 ```sql
 create table if not exists pt_survey_submissions (
-  id text primary key,
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
   survey_type text not null,
-  source text not null,
-  basic_info jsonb not null,
-  body_info jsonb not null,
+  referral_source text not null,
+  name text not null,
+  phone text not null,
+  age integer not null,
+  job text not null,
+  hobby text not null,
+  gender text not null,
+  height_cm numeric not null,
+  weight_kg numeric not null,
   fitness_experience text not null,
   goals jsonb not null,
-  health jsonb not null,
-  lifestyle jsonb not null,
-  desired_exercises text not null,
-  request_to_coach text not null,
-  privacy_consent boolean not null,
-  status text not null,
-  submitted_at timestamptz not null
+  pain_areas jsonb not null,
+  diseases jsonb not null,
+  medical_restriction boolean not null,
+  medical_restriction_detail text not null default '',
+  activity_level text not null,
+  sleep_hours text not null,
+  stress_level text not null,
+  meal_regularity text not null,
+  weekly_workout_count text not null,
+  preferred_time_zone text not null,
+  preferred_time_1 text not null,
+  preferred_time_2 text not null,
+  want_to_learn text not null,
+  request_to_consultant text not null,
+  privacy_agreed boolean not null,
+  status text not null default '신규'
 );
 ```
