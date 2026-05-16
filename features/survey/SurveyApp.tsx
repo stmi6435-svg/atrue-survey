@@ -3,7 +3,7 @@
 import { ArrowLeft, ArrowRight, Check, ClipboardCheck, Dumbbell, RotateCcw } from "lucide-react";
 import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
-import { createSurveySubmission } from "@/lib/storage/surveyRepository";
+import { createSurveySubmission } from "@/lib/storage/surveySubmitClient";
 import {
   ACTIVITY_OPTIONS,
   BRANCH_LABELS,
@@ -199,7 +199,9 @@ export function SurveyApp() {
       setIsSubmitted(true);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "설문 제출 중 오류가 발생했습니다.");
+      const message = error instanceof Error ? error.message : "설문 제출 중 오류가 발생했습니다.";
+      setSubmitError(message);
+      alert(`제출 오류: ${message}`);
     } finally {
       setIsSubmitting(false);
     }

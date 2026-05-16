@@ -1,39 +1,8 @@
 import { getSupabaseClient } from "@/lib/supabase";
-import type { SurveySubmissionInsert, SurveySubmissionRow } from "@/lib/supabase";
+import type { SurveySubmissionRow } from "@/lib/supabase";
 import type { SubmissionStatus, SurveySubmission } from "@/features/survey/types";
 
 const TABLE_NAME = "pt_survey_submissions";
-
-export async function createSurveySubmission(data: SurveySubmission) {
-  const payload = toInsertPayload(data);
-  console.log("Insert payload:", payload);
-
-  const response = await fetch("/api/survey-submit", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    const result = (await response.json().catch(() => null)) as { success?: boolean; error?: string } | null;
-    const message = result?.error || "설문 제출 중 오류가 발생했습니다.";
-    console.error("Survey submit API error:", message);
-    alert(`제출 오류: ${message}`);
-    throw new Error(message);
-  }
-
-  const result = (await response.json().catch(() => null)) as { success?: boolean; error?: string } | null;
-  if (!result?.success) {
-    const message = result?.error || "설문 제출 중 오류가 발생했습니다.";
-    console.error("Survey submit API error:", message);
-    alert(`제출 오류: ${message}`);
-    throw new Error(message);
-  }
-
-  return true;
-}
 
 export async function getSurveySubmissions() {
   const supabase = getSupabaseClient();
@@ -91,40 +60,6 @@ export async function deleteSurveySubmission(id: string) {
     console.error(error);
     throw error;
   }
-}
-
-function toInsertPayload(data: SurveySubmission): SurveySubmissionInsert {
-  return {
-    survey_type: data.surveyType,
-    branch: data.branch,
-    referral_source: data.source,
-    name: data.basicInfo.name,
-    phone: data.basicInfo.phone,
-    age: Number(data.basicInfo.age),
-    job: data.basicInfo.job,
-    hobby: data.basicInfo.hobby,
-    gender: data.bodyInfo.gender,
-    height_cm: Number(data.bodyInfo.height),
-    weight_kg: Number(data.bodyInfo.weight),
-    fitness_experience: data.fitnessExperience,
-    goals: data.goals,
-    pain_areas: data.health.injuries,
-    diseases: data.health.diseases,
-    medical_restriction: data.health.hasMedicalRestriction === "예",
-    medical_restriction_detail: data.health.medicalRestrictionDetail,
-    activity_level: data.lifestyle.activityLevel,
-    sleep_hours: data.lifestyle.sleepHours,
-    stress_level: data.lifestyle.stressLevel,
-    meal_regularity: data.lifestyle.mealRegularity,
-    weekly_workout_count: data.lifestyle.weeklyWorkoutCount,
-    preferred_time_zone: data.lifestyle.preferredWorkoutTime,
-    preferred_time_1: data.lifestyle.firstChoiceTime,
-    preferred_time_2: data.lifestyle.secondChoiceTime,
-    want_to_learn: data.desiredExercises,
-    request_to_consultant: data.requestToCoach,
-    privacy_agreed: data.privacyConsent,
-    status: data.status || "신규",
-  };
 }
 
 function fromRow(row: SurveySubmissionRow): SurveySubmission {
