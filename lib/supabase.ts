@@ -6,6 +6,7 @@ export type SurveySubmissionRow = {
   id: string;
   created_at: string;
   survey_type: SurveySubmission["surveyType"];
+  branch: SurveySubmission["branch"];
   referral_source: string;
   name: string;
   phone: string;

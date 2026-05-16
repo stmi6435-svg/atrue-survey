@@ -39,6 +39,22 @@ export async function getSurveySubmissions() {
   return data.map(fromRow);
 }
 
+export async function getSurveySubmissionById(id: string) {
+  const supabase = getSupabaseClient();
+  const { data: row, error } = await supabase
+    .from(TABLE_NAME)
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (error) {
+    console.error(error);
+    throw error;
+  }
+
+  return fromRow(row);
+}
+
 export async function updateSurveyStatus(id: string, status: SubmissionStatus) {
   const supabase = getSupabaseClient();
   const { data: row, error } = await supabase
@@ -56,9 +72,20 @@ export async function updateSurveyStatus(id: string, status: SubmissionStatus) {
   return fromRow(row);
 }
 
+export async function deleteSurveySubmission(id: string) {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase.from(TABLE_NAME).delete().eq("id", id);
+
+  if (error) {
+    console.error(error);
+    throw error;
+  }
+}
+
 function toInsertPayload(data: SurveySubmission): SurveySubmissionInsert {
   return {
     survey_type: data.surveyType,
+    branch: data.branch,
     referral_source: data.source,
     name: data.basicInfo.name,
     phone: data.basicInfo.phone,
@@ -93,6 +120,7 @@ function fromRow(row: SurveySubmissionRow): SurveySubmission {
   return {
     id: row.id,
     surveyType: row.survey_type,
+    branch: row.branch,
     source: row.referral_source,
     basicInfo: {
       name: row.name,

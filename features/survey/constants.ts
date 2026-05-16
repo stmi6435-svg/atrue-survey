@@ -1,8 +1,20 @@
-import type { SubmissionStatus, SurveyFormData, SurveyType } from "./types";
+import type { BranchId, SubmissionStatus, SurveyFormData, SurveyType } from "./types";
 
 export const SURVEY_LABELS: Record<SurveyType, string> = {
   trial: "PT 체험권",
   consultation: "PT 상담",
+};
+
+export const BRANCH_OPTIONS: Array<{ id: BranchId; label: string }> = [
+  { id: "munjeong", label: "문정점" },
+  { id: "dapsimni", label: "답십리역점" },
+  { id: "bulgwang", label: "불광역점" },
+];
+
+export const BRANCH_LABELS: Record<BranchId, string> = {
+  munjeong: "문정점",
+  dapsimni: "답십리역점",
+  bulgwang: "불광역점",
 };
 
 export const GREETINGS: Record<SurveyType, string[]> = {
@@ -99,6 +111,7 @@ export const STATUS_OPTIONS: SubmissionStatus[] = [
 ];
 
 export const STEP_TITLES = [
+  "신청 지점",
   "유입 경로",
   "기본정보",
   "신체정보",
@@ -114,6 +127,7 @@ export const STEP_TITLES = [
 
 export const INITIAL_FORM_DATA: SurveyFormData = {
   surveyType: "",
+  branch: "",
   source: "",
   basicInfo: {
     name: "",

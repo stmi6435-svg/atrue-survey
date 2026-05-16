@@ -6,6 +6,8 @@ import { cn } from "@/lib/utils";
 import { createSurveySubmission } from "@/lib/storage/surveyRepository";
 import {
   ACTIVITY_OPTIONS,
+  BRANCH_LABELS,
+  BRANCH_OPTIONS,
   DISEASE_OPTIONS,
   FITNESS_EXPERIENCE_OPTIONS,
   FULL_COMPLETION_TEXT,
@@ -26,7 +28,7 @@ import {
 } from "./constants";
 import type { SurveyFormData, SurveySubmission, SurveyType } from "./types";
 
-const FINAL_REVIEW_STEP = 10;
+const FINAL_REVIEW_STEP = 11;
 
 type FieldErrors = Record<string, string>;
 type NestedFormGroups = Pick<SurveyFormData, "basicInfo" | "bodyInfo" | "health" | "lifestyle">;
@@ -94,10 +96,14 @@ export function SurveyApp() {
     };
 
     if (step === 0) {
-      required(Boolean(form.source), "source", "어트루짐을 알게 된 경로를 선택해 주세요.");
+      required(Boolean(form.branch), "branch", "신청 지점을 선택해 주세요.");
     }
 
     if (step === 1) {
+      required(Boolean(form.source), "source", "어트루짐을 알게 된 경로를 선택해 주세요.");
+    }
+
+    if (step === 2) {
       required(Boolean(form.basicInfo.name.trim()), "name");
       required(Boolean(form.basicInfo.phone.trim()), "phone");
       required(Boolean(form.basicInfo.age.trim()), "age");
@@ -105,21 +111,21 @@ export function SurveyApp() {
       required(Boolean(form.basicInfo.hobby.trim()), "hobby");
     }
 
-    if (step === 2) {
+    if (step === 3) {
       required(Boolean(form.bodyInfo.gender), "gender");
       required(Boolean(form.bodyInfo.height.trim()), "height");
       required(Boolean(form.bodyInfo.weight.trim()), "weight");
     }
 
-    if (step === 3) {
+    if (step === 4) {
       required(Boolean(form.fitnessExperience), "fitnessExperience", "헬스 경험을 선택해 주세요.");
     }
 
-    if (step === 4) {
+    if (step === 5) {
       required(form.goals.length > 0, "goals", "운동 목적을 하나 이상 선택해 주세요.");
     }
 
-    if (step === 5) {
+    if (step === 6) {
       required(form.health.injuries.length > 0, "injuries", "부상 및 통증 부위를 선택해 주세요.");
       required(form.health.diseases.length > 0, "diseases", "질환 및 질병을 선택해 주세요.");
       required(Boolean(form.health.hasMedicalRestriction), "hasMedicalRestriction", "운동 제한 여부를 선택해 주세요.");
@@ -128,7 +134,7 @@ export function SurveyApp() {
       }
     }
 
-    if (step === 6) {
+    if (step === 7) {
       required(Boolean(form.lifestyle.activityLevel), "activityLevel");
       required(Boolean(form.lifestyle.sleepHours), "sleepHours");
       required(Boolean(form.lifestyle.stressLevel), "stressLevel");
@@ -139,15 +145,15 @@ export function SurveyApp() {
       required(Boolean(form.lifestyle.secondChoiceTime.trim()), "secondChoiceTime");
     }
 
-    if (step === 7) {
+    if (step === 8) {
       required(Boolean(form.desiredExercises.trim()), "desiredExercises", "배워보고 싶은 운동을 적어 주세요.");
     }
 
-    if (step === 8) {
+    if (step === 9) {
       required(Boolean(form.requestToCoach.trim()), "requestToCoach", "상담자에게 바라는 점을 적어 주세요.");
     }
 
-    if (step === 9) {
+    if (step === 10) {
       required(form.privacyConsent, "privacyConsent", "개인정보 수집 및 이용에 동의해 주세요.");
     }
 
@@ -172,7 +178,7 @@ export function SurveyApp() {
   }
 
   async function submitSurvey() {
-    if (!form.surveyType) {
+    if (!form.surveyType || !form.branch) {
       return;
     }
 
@@ -182,6 +188,7 @@ export function SurveyApp() {
     const submission: SurveySubmission = {
       ...form,
       surveyType: form.surveyType,
+      branch: form.branch,
       id: createId(),
       status: "신규",
       submittedAt: new Date().toISOString(),
@@ -404,6 +411,23 @@ type StepContentProps = {
 function StepContent({ form, step, errors, updateForm, updateNested, toggleArray }: StepContentProps) {
   if (step === 0) {
     return (
+      <FieldBlock helper="상담 또는 체험권 수업을 희망하는 지점을 선택해 주세요." error={errors.branch}>
+        <OptionGrid
+          options={BRANCH_OPTIONS.map((branch) => branch.label)}
+          selected={form.branch ? BRANCH_LABELS[form.branch] : ""}
+          onSelect={(label) => {
+            const branch = BRANCH_OPTIONS.find((option) => option.label === label);
+            if (branch) {
+              updateForm("branch", branch.id);
+            }
+          }}
+        />
+      </FieldBlock>
+    );
+  }
+
+  if (step === 1) {
+    return (
       <FieldBlock error={errors.source}>
         <OptionGrid
           options={SOURCE_OPTIONS}
@@ -414,7 +438,7 @@ function StepContent({ form, step, errors, updateForm, updateNested, toggleArray
     );
   }
 
-  if (step === 1) {
+  if (step === 2) {
     return (
       <div className="grid gap-4">
         <TextInput label="성함" value={form.basicInfo.name} error={errors.name} onChange={(name) => updateNested("basicInfo", "name", name)} />
@@ -426,7 +450,7 @@ function StepContent({ form, step, errors, updateForm, updateNested, toggleArray
     );
   }
 
-  if (step === 2) {
+  if (step === 3) {
     return (
       <div className="grid gap-5">
         <FieldBlock label="성별" error={errors.gender}>
@@ -442,7 +466,7 @@ function StepContent({ form, step, errors, updateForm, updateNested, toggleArray
     );
   }
 
-  if (step === 3) {
+  if (step === 4) {
     return (
       <FieldBlock error={errors.fitnessExperience}>
         <OptionGrid
@@ -454,7 +478,7 @@ function StepContent({ form, step, errors, updateForm, updateNested, toggleArray
     );
   }
 
-  if (step === 4) {
+  if (step === 5) {
     return (
       <FieldBlock helper="해당되는 항목을 모두 선택해 주세요." error={errors.goals}>
         <MultiOptionGrid options={GOAL_OPTIONS} selected={form.goals} onToggle={(option) => toggleArray("goals", option)} />
@@ -462,7 +486,7 @@ function StepContent({ form, step, errors, updateForm, updateNested, toggleArray
     );
   }
 
-  if (step === 5) {
+  if (step === 6) {
     return (
       <div className="grid gap-7">
         <FieldBlock label="부상 및 통증 부위" helper="해당되는 항목을 모두 선택해 주세요." error={errors.injuries}>
@@ -502,7 +526,7 @@ function StepContent({ form, step, errors, updateForm, updateNested, toggleArray
     );
   }
 
-  if (step === 6) {
+  if (step === 7) {
     return (
       <div className="grid gap-6">
         <FieldBlock label="평소 활동량" error={errors.activityLevel}>
@@ -529,7 +553,7 @@ function StepContent({ form, step, errors, updateForm, updateNested, toggleArray
     );
   }
 
-  if (step === 7) {
+  if (step === 8) {
     return (
       <Textarea
         label="배워보고 싶은 운동"
@@ -541,7 +565,7 @@ function StepContent({ form, step, errors, updateForm, updateNested, toggleArray
     );
   }
 
-  if (step === 8) {
+  if (step === 9) {
     return (
       <Textarea
         label="상담자에게 바라는 점"
@@ -553,7 +577,7 @@ function StepContent({ form, step, errors, updateForm, updateNested, toggleArray
     );
   }
 
-  if (step === 9) {
+  if (step === 10) {
     return (
       <FieldBlock error={errors.privacyConsent}>
         <label className="flex cursor-pointer gap-3 rounded-3xl border border-oatmeal bg-ivory p-5">
@@ -720,6 +744,7 @@ function Textarea({
 function Review({ form }: { form: SurveyFormData }) {
   const rows = [
     ["설문 유형", form.surveyType ? SURVEY_LABELS[form.surveyType] : ""],
+    ["신청 지점", form.branch ? BRANCH_LABELS[form.branch] : ""],
     ["유입 경로", form.source],
     ["성함", form.basicInfo.name],
     ["연락처", form.basicInfo.phone],

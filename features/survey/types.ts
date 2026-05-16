@@ -1,4 +1,5 @@
 export type SurveyType = "trial" | "consultation";
+export type BranchId = "munjeong" | "dapsimni" | "bulgwang";
 
 export type SubmissionStatus =
   | "신규"
@@ -12,6 +13,7 @@ export type YesNo = "예" | "아니오" | "";
 
 export type SurveyFormData = {
   surveyType: SurveyType | "";
+  branch: BranchId | "";
   source: string;
   basicInfo: {
     name: string;
@@ -51,6 +53,7 @@ export type SurveyFormData = {
 export type SurveySubmission = SurveyFormData & {
   id: string;
   surveyType: SurveyType;
+  branch: BranchId;
   status: SubmissionStatus;
   submittedAt: string;
 };

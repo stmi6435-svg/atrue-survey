@@ -37,6 +37,7 @@ create table if not exists pt_survey_submissions (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),
   survey_type text not null,
+  branch text not null,
   referral_source text not null,
   name text not null,
   phone text not null,
