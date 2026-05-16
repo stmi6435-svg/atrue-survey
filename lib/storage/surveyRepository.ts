@@ -17,7 +17,15 @@ export async function createSurveySubmission(data: SurveySubmission) {
   });
 
   if (!response.ok) {
-    const result = (await response.json().catch(() => null)) as { error?: string } | null;
+    const result = (await response.json().catch(() => null)) as { success?: boolean; error?: string } | null;
+    const message = result?.error || "설문 제출 중 오류가 발생했습니다.";
+    console.error("Survey submit API error:", message);
+    alert(`제출 오류: ${message}`);
+    throw new Error(message);
+  }
+
+  const result = (await response.json().catch(() => null)) as { success?: boolean; error?: string } | null;
+  if (!result?.success) {
     const message = result?.error || "설문 제출 중 오류가 발생했습니다.";
     console.error("Survey submit API error:", message);
     alert(`제출 오류: ${message}`);
