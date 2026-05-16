@@ -1,15 +1,15 @@
 import { getSupabaseClient } from "@/lib/supabase";
+import { supabasePublic } from "@/lib/supabasePublic";
 import type { SurveySubmissionInsert, SurveySubmissionRow } from "@/lib/supabase";
 import type { SubmissionStatus, SurveySubmission } from "@/features/survey/types";
 
 const TABLE_NAME = "pt_survey_submissions";
 
 export async function createSurveySubmission(data: SurveySubmission) {
-  const supabase = getSupabaseClient();
   const payload = toInsertPayload(data);
   console.log("Insert payload:", payload);
 
-  const { data: row, error } = await supabase
+  const { data: row, error } = await supabasePublic
     .from(TABLE_NAME)
     .insert(payload)
     .select()
