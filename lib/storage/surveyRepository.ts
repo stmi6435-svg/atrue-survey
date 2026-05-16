@@ -1,5 +1,4 @@
 import { getSupabaseClient } from "@/lib/supabase";
-import { supabasePublic } from "@/lib/supabasePublic";
 import type { SurveySubmissionInsert, SurveySubmissionRow } from "@/lib/supabase";
 import type { SubmissionStatus, SurveySubmission } from "@/features/survey/types";
 
@@ -9,14 +8,20 @@ export async function createSurveySubmission(data: SurveySubmission) {
   const payload = toInsertPayload(data);
   console.log("Insert payload:", payload);
 
-  const { error } = await supabasePublic
-    .from(TABLE_NAME)
-    .insert(payload);
+  const response = await fetch("/api/survey-submit", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
 
-  if (error) {
-    console.error("Supabase insert error:", error);
-    alert(`제출 오류: ${error.message}`);
-    throw error;
+  if (!response.ok) {
+    const result = (await response.json().catch(() => null)) as { error?: string } | null;
+    const message = result?.error || "설문 제출 중 오류가 발생했습니다.";
+    console.error("Survey submit API error:", message);
+    alert(`제출 오류: ${message}`);
+    throw new Error(message);
   }
 
   return true;
