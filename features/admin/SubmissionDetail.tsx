@@ -1,10 +1,11 @@
 "use client";
 
-import { ArrowLeft, Trash2 } from "lucide-react";
+import { ArrowLeft, LogOut, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { deleteSurveySubmission, getSurveySubmissionById, updateSurveyStatus } from "@/lib/storage/surveyRepository";
+import { getSupabaseClient } from "@/lib/supabase";
 import { BRANCH_LABELS, STATUS_OPTIONS, SURVEY_LABELS } from "@/features/survey/constants";
 import type { SubmissionStatus, SurveySubmission } from "@/features/survey/types";
 
@@ -58,6 +59,12 @@ export function SubmissionDetail({ id }: { id: string }) {
     }
   }
 
+  async function handleLogout() {
+    const supabase = getSupabaseClient();
+    await supabase.auth.signOut();
+    router.replace("/admin/login");
+  }
+
   return (
     <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-5xl">
@@ -73,16 +80,26 @@ export function SubmissionDetail({ id }: { id: string }) {
                 {submission ? `${submission.basicInfo.name} 회원 설문` : "설문 상세"}
               </h1>
             </div>
-            {submission ? (
+            <div className="flex flex-col gap-2 sm:flex-row">
+              {submission ? (
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-clay px-5 text-sm font-bold text-clay transition hover:bg-clay hover:text-white"
+                >
+                  <Trash2 size={16} aria-hidden />
+                  삭제
+                </button>
+              ) : null}
               <button
                 type="button"
-                onClick={handleDelete}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-clay px-5 text-sm font-bold text-clay transition hover:bg-clay hover:text-white"
+                onClick={handleLogout}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-charcoal px-5 text-sm font-bold text-ivory transition hover:bg-cocoa"
               >
-                <Trash2 size={16} aria-hidden />
-                삭제
+                <LogOut size={16} aria-hidden />
+                로그아웃
               </button>
-            ) : null}
+            </div>
           </div>
           {errorMessage ? <p className="mt-4 text-sm font-semibold text-clay">{errorMessage}</p> : null}
         </header>
