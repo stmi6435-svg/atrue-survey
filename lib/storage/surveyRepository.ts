@@ -9,11 +9,9 @@ export async function createSurveySubmission(data: SurveySubmission) {
   const payload = toInsertPayload(data);
   console.log("Insert payload:", payload);
 
-  const { data: row, error } = await supabasePublic
+  const { error } = await supabasePublic
     .from(TABLE_NAME)
-    .insert(payload)
-    .select()
-    .single();
+    .insert(payload);
 
   if (error) {
     console.error("Supabase insert error:", error);
@@ -21,7 +19,7 @@ export async function createSurveySubmission(data: SurveySubmission) {
     throw error;
   }
 
-  return fromRow(row);
+  return true;
 }
 
 export async function getSurveySubmissions() {
