@@ -16,7 +16,7 @@ export async function getSurveySubmissions() {
     throw error;
   }
 
-  return data.map(fromRow);
+  return (Array.isArray(data) ? data : []).map(fromRow);
 }
 
 export async function getSurveySubmissionById(id: string) {
@@ -65,43 +65,59 @@ export async function deleteSurveySubmission(id: string) {
 function fromRow(row: SurveySubmissionRow): SurveySubmission {
   return {
     id: row.id,
-    surveyType: row.survey_type,
-    branch: row.branch,
-    source: row.referral_source,
+    surveyType: row.survey_type || "consultation",
+    branch: row.branch || "munjeong",
+    source: textOrFallback(row.referral_source),
     basicInfo: {
-      name: row.name,
-      phone: row.phone,
-      age: String(row.age),
-      job: row.job,
-      hobby: row.hobby,
+      name: textOrFallback(row.name),
+      phone: textOrFallback(row.phone),
+      age: valueToText(row.age),
+      job: textOrFallback(row.job),
+      hobby: textOrFallback(row.hobby),
     },
     bodyInfo: {
-      gender: row.gender,
-      height: String(row.height_cm),
-      weight: String(row.weight_kg),
+      gender: textOrFallback(row.gender),
+      height: valueToText(row.height_cm),
+      weight: valueToText(row.weight_kg),
     },
-    fitnessExperience: row.fitness_experience,
-    goals: row.goals,
+    fitnessExperience: textOrFallback(row.fitness_experience),
+    goals: arrayOrEmpty(row.goals),
     health: {
-      injuries: row.pain_areas,
-      diseases: row.diseases,
+      injuries: arrayOrEmpty(row.pain_areas),
+      diseases: arrayOrEmpty(row.diseases),
       hasMedicalRestriction: row.medical_restriction ? "예" : "아니오",
-      medicalRestrictionDetail: row.medical_restriction_detail,
+      medicalRestrictionDetail: textOrEmpty(row.medical_restriction_detail),
     },
     lifestyle: {
-      activityLevel: row.activity_level,
-      sleepHours: row.sleep_hours,
-      stressLevel: row.stress_level,
-      mealRegularity: row.meal_regularity,
-      weeklyWorkoutCount: row.weekly_workout_count,
-      preferredWorkoutTime: row.preferred_time_zone,
-      firstChoiceTime: row.preferred_time_1,
-      secondChoiceTime: row.preferred_time_2,
+      activityLevel: textOrFallback(row.activity_level),
+      sleepHours: textOrFallback(row.sleep_hours),
+      stressLevel: textOrFallback(row.stress_level),
+      mealRegularity: textOrFallback(row.meal_regularity),
+      weeklyWorkoutCount: textOrFallback(row.weekly_workout_count),
+      preferredWorkoutTime: textOrFallback(row.preferred_time_zone),
+      firstChoiceTime: textOrFallback(row.preferred_time_1),
+      secondChoiceTime: textOrFallback(row.preferred_time_2),
     },
-    desiredExercises: row.want_to_learn,
-    requestToCoach: row.request_to_consultant,
-    privacyConsent: row.privacy_agreed,
-    status: row.status,
-    submittedAt: row.created_at,
+    desiredExercises: textOrFallback(row.want_to_learn),
+    requestToCoach: textOrFallback(row.request_to_consultant),
+    privacyConsent: Boolean(row.privacy_agreed),
+    status: row.status || "신규",
+    submittedAt: row.created_at || new Date(0).toISOString(),
   };
+}
+
+function arrayOrEmpty(value: string[] | null) {
+  return Array.isArray(value) ? value : [];
+}
+
+function textOrFallback(value: string | null) {
+  return value && value.trim() ? value : "미입력";
+}
+
+function textOrEmpty(value: string | null) {
+  return value || "";
+}
+
+function valueToText(value: number | null) {
+  return value === null || value === undefined ? "미입력" : String(value);
 }

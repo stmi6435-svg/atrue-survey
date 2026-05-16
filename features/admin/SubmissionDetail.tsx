@@ -134,43 +134,43 @@ export function SubmissionDetail({ id }: { id: string }) {
 
             <DetailSection title="기본 신청 정보">
               <DetailRow label="신청 지점" value={BRANCH_LABELS[submission.branch]} />
-              <DetailRow label="유입 경로" value={submission.source} />
-              <DetailRow label="성함" value={submission.basicInfo.name} />
-              <DetailRow label="연락처" value={submission.basicInfo.phone} />
-              <DetailRow label="나이" value={submission.basicInfo.age} />
-              <DetailRow label="직업" value={submission.basicInfo.job} />
-              <DetailRow label="취미" value={submission.basicInfo.hobby} />
+              <DetailRow label="유입 경로" value={safeText(submission.source)} />
+              <DetailRow label="성함" value={safeText(submission.basicInfo?.name)} />
+              <DetailRow label="연락처" value={safeText(submission.basicInfo?.phone)} />
+              <DetailRow label="나이" value={safeText(submission.basicInfo?.age)} />
+              <DetailRow label="직업" value={safeText(submission.basicInfo?.job)} />
+              <DetailRow label="취미" value={safeText(submission.basicInfo?.hobby)} />
             </DetailSection>
 
             <DetailSection title="신체정보와 운동 경험">
-              <DetailRow label="성별" value={submission.bodyInfo.gender} />
-              <DetailRow label="키" value={`${submission.bodyInfo.height}cm`} />
-              <DetailRow label="몸무게" value={`${submission.bodyInfo.weight}kg`} />
-              <DetailRow label="헬스 경험" value={submission.fitnessExperience} />
-              <DetailRow label="운동 목적" value={submission.goals.join(", ")} />
+              <DetailRow label="성별" value={safeText(submission.bodyInfo?.gender)} />
+              <DetailRow label="키" value={withUnit(submission.bodyInfo?.height, "cm")} />
+              <DetailRow label="몸무게" value={withUnit(submission.bodyInfo?.weight, "kg")} />
+              <DetailRow label="헬스 경험" value={safeText(submission.fitnessExperience)} />
+              <DetailRow label="운동 목적" value={joinOrFallback(submission.goals)} />
             </DetailSection>
 
             <DetailSection title="건강 상태">
-              <DetailRow label="부상 및 통증 부위" value={submission.health.injuries.join(", ")} />
-              <DetailRow label="질환 및 질병" value={submission.health.diseases.join(", ")} />
-              <DetailRow label="운동 제한 여부" value={submission.health.hasMedicalRestriction} />
-              <DetailRow label="운동 제한 상세" value={submission.health.medicalRestrictionDetail || "없음"} />
+              <DetailRow label="부상 및 통증 부위" value={joinOrFallback(submission.health?.injuries)} />
+              <DetailRow label="질환 및 질병" value={joinOrFallback(submission.health?.diseases)} />
+              <DetailRow label="운동 제한 여부" value={safeText(submission.health?.hasMedicalRestriction)} />
+              <DetailRow label="운동 제한 상세" value={safeText(submission.health?.medicalRestrictionDetail, "없음")} />
             </DetailSection>
 
             <DetailSection title="라이프스타일">
-              <DetailRow label="평소 활동량" value={submission.lifestyle.activityLevel} />
-              <DetailRow label="평균 수면시간" value={submission.lifestyle.sleepHours} />
-              <DetailRow label="스트레스 수준" value={submission.lifestyle.stressLevel} />
-              <DetailRow label="식사 규칙성" value={submission.lifestyle.mealRegularity} />
-              <DetailRow label="주 운동 가능 횟수" value={submission.lifestyle.weeklyWorkoutCount} />
-              <DetailRow label="선호 운동 시간대" value={submission.lifestyle.preferredWorkoutTime} />
-              <DetailRow label="1순위 희망 시간" value={submission.lifestyle.firstChoiceTime} />
-              <DetailRow label="2순위 희망 시간" value={submission.lifestyle.secondChoiceTime} />
+              <DetailRow label="평소 활동량" value={safeText(submission.lifestyle?.activityLevel)} />
+              <DetailRow label="평균 수면시간" value={safeText(submission.lifestyle?.sleepHours)} />
+              <DetailRow label="스트레스 수준" value={safeText(submission.lifestyle?.stressLevel)} />
+              <DetailRow label="식사 규칙성" value={safeText(submission.lifestyle?.mealRegularity)} />
+              <DetailRow label="주 운동 가능 횟수" value={safeText(submission.lifestyle?.weeklyWorkoutCount)} />
+              <DetailRow label="선호 운동 시간대" value={safeText(submission.lifestyle?.preferredWorkoutTime)} />
+              <DetailRow label="1순위 희망 시간" value={safeText(submission.lifestyle?.firstChoiceTime)} />
+              <DetailRow label="2순위 희망 시간" value={safeText(submission.lifestyle?.secondChoiceTime)} />
             </DetailSection>
 
             <DetailSection title="상담 참고 내용">
-              <DetailRow label="배워보고 싶은 운동" value={submission.desiredExercises} />
-              <DetailRow label="상담자에게 바라는 점" value={submission.requestToCoach} />
+              <DetailRow label="배워보고 싶은 운동" value={safeText(submission.desiredExercises)} />
+              <DetailRow label="상담자에게 바라는 점" value={safeText(submission.requestToCoach)} />
               <DetailRow label="개인정보 동의 여부" value={submission.privacyConsent ? "동의" : "미동의"} />
             </DetailSection>
           </div>
@@ -216,6 +216,10 @@ function DetailEmpty({ message }: { message: string }) {
 }
 
 function formatDate(value: string) {
+  if (!value) {
+    return "미입력";
+  }
+
   return new Intl.DateTimeFormat("ko-KR", {
     year: "numeric",
     month: "2-digit",
@@ -223,4 +227,22 @@ function formatDate(value: string) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
+}
+
+function safeArray(value: unknown) {
+  return Array.isArray(value) ? value : [];
+}
+
+function safeText(value: unknown, fallback = "미입력") {
+  return typeof value === "string" && value.trim() ? value : fallback;
+}
+
+function joinOrFallback(value: unknown) {
+  const items = safeArray(value).map((item) => safeText(item)).filter((item) => item !== "미입력");
+  return items.length > 0 ? items.join(", ") : "미입력";
+}
+
+function withUnit(value: unknown, unit: string) {
+  const text = safeText(value);
+  return text === "미입력" ? text : `${text}${unit}`;
 }

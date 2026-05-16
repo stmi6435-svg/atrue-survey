@@ -55,10 +55,10 @@ export function AdminDashboard() {
 
   const charts = useMemo(
     () => [
-      { title: "유입경로", data: countSingle(filteredSubmissions, (submission) => submission.source) },
-      { title: "성별", data: countSingle(filteredSubmissions, (submission) => submission.bodyInfo.gender) },
-      { title: "헬스경험", data: countSingle(filteredSubmissions, (submission) => submission.fitnessExperience) },
-      { title: "운동 목적", data: countMultiple(filteredSubmissions, (submission) => submission.goals) },
+      { title: "유입경로", data: countSingle(filteredSubmissions, (submission) => safeText(submission.source)) },
+      { title: "성별", data: countSingle(filteredSubmissions, (submission) => safeText(submission.bodyInfo?.gender)) },
+      { title: "헬스경험", data: countSingle(filteredSubmissions, (submission) => safeText(submission.fitnessExperience)) },
+      { title: "운동 목적", data: countMultiple(filteredSubmissions, (submission) => safeArray(submission.goals)) },
     ],
     [filteredSubmissions],
   );
@@ -211,7 +211,8 @@ function SummaryCard({ icon, label, value }: { icon: React.ReactNode; label: str
 }
 
 function ChartCard({ title, data }: { title: string; data: ChartDatum[] }) {
-  const total = data.reduce((sum, item) => sum + item.value, 0);
+  const safeData = Array.isArray(data) ? data : [];
+  const total = safeData.reduce((sum, item) => sum + item.value, 0);
 
   return (
     <div className="rounded-3xl border border-[#EFE0CD] bg-white p-5 shadow-[0_18px_60px_rgba(38,35,32,0.10)]">
@@ -224,13 +225,13 @@ function ChartCard({ title, data }: { title: string; data: ChartDatum[] }) {
       </div>
 
       <div className="mt-4 h-56 rounded-3xl bg-[#FFF9EF] px-2 py-3">
-        {data.length === 0 ? (
+        {safeData.length === 0 ? (
           <div className="flex h-full items-center justify-center text-sm font-semibold text-[#262320]/50">데이터 없음</div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
-                data={data}
+                data={safeData}
                 dataKey="value"
                 nameKey="name"
                 cx="50%"
@@ -241,7 +242,7 @@ function ChartCard({ title, data }: { title: string; data: ChartDatum[] }) {
                 stroke="#FFF9EF"
                 strokeWidth={3}
               >
-                {data.map((entry, index) => (
+                {safeData.map((entry, index) => (
                   <Cell key={entry.name} fill={chartColors[index % chartColors.length]} />
                 ))}
               </Pie>
@@ -260,7 +261,7 @@ function ChartCard({ title, data }: { title: string; data: ChartDatum[] }) {
       </div>
 
       <div className="mt-4 grid gap-2 text-xs text-[#262320]/70">
-        {data.slice(0, 5).map((item, index) => (
+        {safeData.slice(0, 5).map((item, index) => (
           <div key={item.name} className="flex items-center justify-between gap-3">
             <span className="flex min-w-0 items-center gap-2">
               <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: chartColors[index % chartColors.length] }} />
@@ -312,7 +313,7 @@ function DesktopTable({
               <td className="px-5 py-4 font-bold text-[#262320]">{BRANCH_LABELS[submission.branch]}</td>
               <td className="px-5 py-4">{SURVEY_LABELS[submission.surveyType]}</td>
               <td className="px-5 py-4">{submission.basicInfo.phone}</td>
-              <td className="max-w-[260px] px-5 py-4">{submission.goals.join(", ")}</td>
+              <td className="max-w-[260px] px-5 py-4">{joinOrFallback(submission.goals)}</td>
               <td className="px-5 py-4">
                 <StatusSelect value={submission.status} onChange={(status) => onStatusChange(submission.id, status)} />
               </td>
@@ -356,7 +357,7 @@ function MobileList({
             </div>
             <StatusSelect value={submission.status} onChange={(status) => onStatusChange(submission.id, status)} />
           </div>
-          <InfoRow label="운동목적" value={submission.goals.join(", ")} />
+              <InfoRow label="운동목적" value={joinOrFallback(submission.goals)} />
           <InfoRow label="제출일" value={formatDate(submission.submittedAt)} />
           <button
             type="button"
@@ -423,7 +424,7 @@ function EmptyState({ message }: { message: string }) {
 function countSingle(items: SurveySubmission[], selector: (submission: SurveySubmission) => string): ChartDatum[] {
   return sortChartData(
     items.reduce<Record<string, number>>((acc, submission) => {
-      const key = selector(submission) || "미입력";
+      const key = safeText(selector(submission));
       acc[key] = (acc[key] || 0) + 1;
       return acc;
     }, {}),
@@ -433,7 +434,7 @@ function countSingle(items: SurveySubmission[], selector: (submission: SurveySub
 function countMultiple(items: SurveySubmission[], selector: (submission: SurveySubmission) => string[]): ChartDatum[] {
   return sortChartData(
     items.reduce<Record<string, number>>((acc, submission) => {
-      const values = selector(submission);
+      const values = safeArray(selector(submission)).map(safeText).filter((value) => value !== "미입력");
       if (values.length === 0) {
         acc["미입력"] = (acc["미입력"] || 0) + 1;
       }
@@ -449,6 +450,19 @@ function sortChartData(counts: Record<string, number>) {
   return Object.entries(counts)
     .map(([name, value]) => ({ name, value }))
     .sort((a, b) => b.value - a.value);
+}
+
+function safeArray(value: unknown) {
+  return Array.isArray(value) ? value : [];
+}
+
+function safeText(value: unknown) {
+  return typeof value === "string" && value.trim() ? value : "미입력";
+}
+
+function joinOrFallback(value: unknown) {
+  const items = safeArray(value).map(safeText).filter((item) => item !== "미입력");
+  return items.length > 0 ? items.join(", ") : "미입력";
 }
 
 function formatDate(value: string) {
