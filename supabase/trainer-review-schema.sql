@@ -40,6 +40,7 @@ drop policy if exists "Admin UI can insert trainers" on public.trainers;
 drop policy if exists "Admin UI can update trainers" on public.trainers;
 drop policy if exists "Public can submit trainer reviews" on public.trainer_reviews;
 drop policy if exists "Admin UI can view trainer reviews" on public.trainer_reviews;
+drop policy if exists "Admin UI can delete trainer reviews" on public.trainer_reviews;
 
 create policy "Public can view active trainers"
   on public.trainers
@@ -75,5 +76,11 @@ create policy "Public can submit trainer reviews"
 create policy "Admin UI can view trainer reviews"
   on public.trainer_reviews
   for select
+  to anon, authenticated
+  using (true);
+
+create policy "Admin UI can delete trainer reviews"
+  on public.trainer_reviews
+  for delete
   to anon, authenticated
   using (true);

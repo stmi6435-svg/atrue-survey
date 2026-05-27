@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, RefreshCw } from "lucide-react";
+import { ChevronDown, RefreshCw, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { ADMIN_ALL_BRANCH_VALUE, BRANCH_LABELS, BRANCH_OPTIONS, REVIEW_METRICS } from "@/features/trainer-review/constants";
 import type { BranchId, ReviewMetric, TrainerReview } from "@/features/trainer-review/types";
@@ -76,6 +76,7 @@ export function AdminReviewTable() {
   const [reviews, setReviews] = useState<TrainerReview[]>([]);
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [deletingReviewId, setDeletingReviewId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
 
   const groups = useMemo(() => buildGroups(reviews), [reviews]);
@@ -112,6 +113,31 @@ export function AdminReviewTable() {
     void loadReviews(branchFilter);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [branchFilter]);
+
+  async function handleDeleteReview(reviewId: string) {
+    const confirmed = window.confirm("이 평가를 삭제하시겠습니까?");
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingReviewId(reviewId);
+    setErrorMessage("");
+
+    try {
+      const supabase = getSupabaseClient();
+      const { error } = await supabase.from("trainer_reviews").delete().eq("id", reviewId);
+
+      if (error) {
+        throw error;
+      }
+
+      setReviews((currentReviews) => currentReviews.filter((review) => review.id !== reviewId));
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "평가 삭제에 실패했습니다.");
+    } finally {
+      setDeletingReviewId(null);
+    }
+  }
 
   return (
     <section className="grid gap-5">
@@ -228,6 +254,17 @@ export function AdminReviewTable() {
                             <dd className="mt-1">{review.pt_session_count ?? "-"}</dd>
                           </div>
                         </dl>
+                        <div className="mt-4 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => void handleDeleteReview(review.id)}
+                            disabled={deletingReviewId === review.id}
+                            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 text-sm font-black text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                          >
+                            <Trash2 size={16} aria-hidden />
+                            {deletingReviewId === review.id ? "삭제 중..." : "평가 삭제"}
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
