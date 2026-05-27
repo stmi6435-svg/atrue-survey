@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { BranchId, Trainer, TrainerReview } from "@/features/trainer-review/types";
 import type { SubmissionStatus, SurveySubmission } from "@/features/survey/types";
 
 export type SurveySubmissionRow = {
@@ -38,6 +39,27 @@ export type SurveySubmissionRow = {
 
 export type SurveySubmissionInsert = Omit<SurveySubmissionRow, "id" | "created_at">;
 
+export type TrainerInsert = {
+  branch: BranchId;
+  name: string;
+  is_active?: boolean;
+};
+
+export type TrainerUpdate = Partial<Pick<Trainer, "branch" | "name" | "is_active">>;
+
+export type TrainerReviewInsert = {
+  branch: BranchId;
+  trainer_id: string;
+  trainer_name: string;
+  member_name?: string | null;
+  phone_last4?: string | null;
+  pt_session_count?: number | null;
+  routine_delivery_score: number;
+  session_log_score: number;
+  kindness_score: number;
+  improvement_feedback?: string | null;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -46,6 +68,25 @@ export type Database = {
         Insert: SurveySubmissionInsert;
         Update: Partial<SurveySubmissionInsert>;
         Relationships: [];
+      };
+      trainers: {
+        Row: Trainer;
+        Insert: TrainerInsert;
+        Update: TrainerUpdate;
+        Relationships: [];
+      };
+      trainer_reviews: {
+        Row: TrainerReview;
+        Insert: TrainerReviewInsert;
+        Update: Partial<TrainerReviewInsert>;
+        Relationships: [
+          {
+            foreignKeyName: "trainer_reviews_trainer_id_fkey";
+            columns: ["trainer_id"];
+            referencedRelation: "trainers";
+            referencedColumns: ["id"];
+          },
+        ];
       };
     };
     Views: Record<string, never>;
