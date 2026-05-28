@@ -19,6 +19,7 @@ export type TrainerReview = {
   routine_delivery_score: number;
   session_log_score: number;
   kindness_score: number;
+  schedule_coordination_score: number;
   improvement_feedback: string | null;
   created_at: string;
 };
@@ -27,6 +28,7 @@ export type ReviewScores = {
   routine_delivery_score: number;
   session_log_score: number;
   kindness_score: number;
+  schedule_coordination_score: number;
 };
 
 export type ReviewMetric = keyof ReviewScores;

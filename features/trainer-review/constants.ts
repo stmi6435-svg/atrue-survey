@@ -32,6 +32,11 @@ export const REVIEW_METRICS: Array<{
     label: "친절도",
     helper: "질문과 요청에 편안하고 친절하게 응대해 주셨나요?",
   },
+  {
+    key: "schedule_coordination_score",
+    label: "수업 스케줄 협의",
+    helper: "수업 일정 조율이 원활하고 충분히 배려된다고 느끼셨나요?",
+  },
 ];
 
 export const ADMIN_ALL_BRANCH_VALUE = "all";

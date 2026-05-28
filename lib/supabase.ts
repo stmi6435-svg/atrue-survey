@@ -57,6 +57,7 @@ export type TrainerReviewInsert = {
   routine_delivery_score: number;
   session_log_score: number;
   kindness_score: number;
+  schedule_coordination_score: number;
   improvement_feedback?: string | null;
 };
 

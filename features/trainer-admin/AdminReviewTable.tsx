@@ -147,7 +147,7 @@ export function AdminReviewTable() {
             <p className="text-xs font-black uppercase tracking-[0.18em] text-[#B67854]">REVIEWS</p>
             <h1 className="mt-2 text-3xl font-black leading-tight text-[#262320]">트레이너 평가 집계</h1>
             <p className="mt-2 text-sm font-medium leading-6 text-[#262320]/65">
-              트레이너 이름을 누르면 항목별 평균과 주관식 평가가 펼쳐집니다.
+              트레이너 이름을 누르면 4개 항목 평균과 회원별 별점 상세가 펼쳐집니다.
             </p>
           </div>
           <button
@@ -217,7 +217,7 @@ export function AdminReviewTable() {
 
               {isExpanded ? (
                 <div className="border-t border-[#EFE0CD] bg-[#FFFCF7] p-5 sm:p-6">
-                  <div className="grid gap-3 sm:grid-cols-4">
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                     {REVIEW_METRICS.map((metric) => (
                       <div key={metric.key} className="rounded-2xl border border-[#EFE0CD] bg-white p-4">
                         <p className="text-xs font-black text-[#262320]/55">{metric.label}</p>
@@ -233,9 +233,6 @@ export function AdminReviewTable() {
                   <div className="mt-3 grid gap-3">
                     {group.reviews.map((review) => (
                       <div key={review.id} className="rounded-2xl border border-[#EFE0CD] bg-white p-4">
-                        <p className="text-sm font-medium leading-6 text-[#262320]/76">
-                          {review.improvement_feedback?.trim() || "작성된 의견이 없습니다."}
-                        </p>
                         <dl className="mt-4 grid gap-2 text-sm font-bold text-[#262320]/62 sm:grid-cols-4">
                           <div>
                             <dt className="text-xs text-[#262320]/42">제출일</dt>
@@ -254,6 +251,20 @@ export function AdminReviewTable() {
                             <dd className="mt-1">{review.pt_session_count ?? "-"}</dd>
                           </div>
                         </dl>
+                        <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                          {REVIEW_METRICS.map((metric) => (
+                            <div key={metric.key} className="rounded-2xl bg-[#FFF9EF] px-4 py-3">
+                              <p className="text-xs font-black text-[#262320]/50">{metric.label}</p>
+                              <p className="mt-1 text-lg font-black text-[#262320]">{review[metric.key]}점</p>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="mt-4 rounded-2xl bg-[#FFFCF7] px-4 py-3">
+                          <p className="text-xs font-black text-[#262320]/50">주관식 평가</p>
+                          <p className="mt-2 text-sm font-medium leading-6 text-[#262320]/76">
+                            {review.improvement_feedback?.trim() || "작성된 의견이 없습니다."}
+                          </p>
+                        </div>
                         <div className="mt-4 flex justify-end">
                           <button
                             type="button"

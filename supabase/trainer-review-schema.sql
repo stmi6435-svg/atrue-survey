@@ -22,9 +22,33 @@ create table if not exists public.trainer_reviews (
   routine_delivery_score integer not null check (routine_delivery_score between 1 and 5),
   session_log_score integer not null check (session_log_score between 1 and 5),
   kindness_score integer not null check (kindness_score between 1 and 5),
+  schedule_coordination_score integer not null check (schedule_coordination_score between 1 and 5),
   improvement_feedback text,
   created_at timestamptz not null default now()
 );
+
+alter table public.trainer_reviews
+  add column if not exists schedule_coordination_score integer;
+
+update public.trainer_reviews
+set schedule_coordination_score = kindness_score
+where schedule_coordination_score is null;
+
+alter table public.trainer_reviews
+  alter column schedule_coordination_score set not null;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'trainer_reviews_schedule_coordination_score_check'
+  ) then
+    alter table public.trainer_reviews
+      add constraint trainer_reviews_schedule_coordination_score_check
+      check (schedule_coordination_score between 1 and 5);
+  end if;
+end $$;
 
 create index if not exists trainer_reviews_branch_trainer_idx
   on public.trainer_reviews (branch, trainer_id, created_at desc);
@@ -71,6 +95,7 @@ create policy "Public can submit trainer reviews"
     routine_delivery_score between 1 and 5
     and session_log_score between 1 and 5
     and kindness_score between 1 and 5
+    and schedule_coordination_score between 1 and 5
   );
 
 create policy "Admin UI can view trainer reviews"

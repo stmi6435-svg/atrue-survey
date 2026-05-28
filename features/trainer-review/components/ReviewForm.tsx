@@ -13,6 +13,7 @@ const INITIAL_SCORES: ReviewScores = {
   routine_delivery_score: 0,
   session_log_score: 0,
   kindness_score: 0,
+  schedule_coordination_score: 0,
 };
 
 function optionalText(value: string) {
@@ -100,7 +101,7 @@ export function ReviewForm() {
     }
 
     if (!allScoresSelected) {
-      setErrorMessage("별점 3개 항목을 모두 선택해 주세요.");
+      setErrorMessage("별점 4개 항목을 모두 선택해 주세요.");
       return;
     }
 
@@ -124,6 +125,7 @@ export function ReviewForm() {
         routine_delivery_score: scores.routine_delivery_score,
         session_log_score: scores.session_log_score,
         kindness_score: scores.kindness_score,
+        schedule_coordination_score: scores.schedule_coordination_score,
         improvement_feedback: optionalText(improvementFeedback),
       });
 
