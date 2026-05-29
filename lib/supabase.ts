@@ -51,6 +51,7 @@ export type TrainerReviewInsert = {
   branch: BranchId;
   trainer_id: string;
   trainer_name: string;
+  goal_progress_score: number;
   member_name?: string | null;
   phone_last4?: string | null;
   pt_session_count?: number | null;

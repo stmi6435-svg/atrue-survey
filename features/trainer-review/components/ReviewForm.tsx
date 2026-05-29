@@ -6,6 +6,7 @@ import { BRANCH_LABELS, REVIEW_METRICS } from "../constants";
 import type { BranchId, ReviewScores, Trainer } from "../types";
 import { getSupabaseClient } from "@/lib/supabase";
 import { BranchSelect } from "./BranchSelect";
+import { GoalProgressSelect } from "./GoalProgressSelect";
 import { StarRating } from "./StarRating";
 import { TrainerSelect } from "./TrainerSelect";
 
@@ -25,6 +26,7 @@ export function ReviewForm() {
   const [branch, setBranch] = useState<BranchId | "">("");
   const [trainers, setTrainers] = useState<Trainer[]>([]);
   const [selectedTrainerId, setSelectedTrainerId] = useState("");
+  const [goalProgressScore, setGoalProgressScore] = useState(0);
   const [scores, setScores] = useState<ReviewScores>(INITIAL_SCORES);
   const [memberName, setMemberName] = useState("");
   const [phoneLast4, setPhoneLast4] = useState("");
@@ -41,7 +43,8 @@ export function ReviewForm() {
   );
 
   const allScoresSelected = REVIEW_METRICS.every((metric) => scores[metric.key] > 0);
-  const canSubmit = Boolean(branch && selectedTrainer && allScoresSelected && !isSubmitting);
+  const isGoalProgressSelected = goalProgressScore > 0;
+  const canSubmit = Boolean(branch && selectedTrainer && isGoalProgressSelected && allScoresSelected && !isSubmitting);
 
   useEffect(() => {
     if (!branch) {
@@ -55,6 +58,7 @@ export function ReviewForm() {
       setIsLoadingTrainers(true);
       setErrorMessage("");
       setSelectedTrainerId("");
+      setGoalProgressScore(0);
       setScores(INITIAL_SCORES);
 
       try {
@@ -100,6 +104,11 @@ export function ReviewForm() {
       return;
     }
 
+    if (!isGoalProgressSelected) {
+      setErrorMessage("목표 달성 체감 점수를 선택해 주세요.");
+      return;
+    }
+
     if (!allScoresSelected) {
       setErrorMessage("별점 4개 항목을 모두 선택해 주세요.");
       return;
@@ -119,6 +128,7 @@ export function ReviewForm() {
         branch,
         trainer_id: selectedTrainer.id,
         trainer_name: selectedTrainer.name,
+        goal_progress_score: goalProgressScore,
         member_name: optionalText(memberName),
         phone_last4: optionalText(phoneLast4),
         pt_session_count: parsedPtSessionCount,
@@ -135,6 +145,7 @@ export function ReviewForm() {
 
       setIsComplete(true);
       setSelectedTrainerId("");
+      setGoalProgressScore(0);
       setScores(INITIAL_SCORES);
       setMemberName("");
       setPhoneLast4("");
@@ -199,6 +210,8 @@ export function ReviewForm() {
           </p>
 
           <div className="mt-5 grid gap-4">
+            <GoalProgressSelect value={goalProgressScore} onChange={setGoalProgressScore} disabled={isSubmitting} />
+
             {REVIEW_METRICS.map((metric) => (
               <StarRating
                 key={metric.key}

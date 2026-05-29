@@ -2,7 +2,13 @@
 
 import { ChevronDown, RefreshCw, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { ADMIN_ALL_BRANCH_VALUE, BRANCH_LABELS, BRANCH_OPTIONS, REVIEW_METRICS } from "@/features/trainer-review/constants";
+import {
+  ADMIN_ALL_BRANCH_VALUE,
+  BRANCH_LABELS,
+  BRANCH_OPTIONS,
+  GOAL_PROGRESS_LABELS,
+  REVIEW_METRICS,
+} from "@/features/trainer-review/constants";
 import type { BranchId, ReviewMetric, TrainerReview } from "@/features/trainer-review/types";
 import { getSupabaseClient } from "@/lib/supabase";
 
@@ -15,6 +21,8 @@ type ReviewGroup = {
   reviews: TrainerReview[];
   averages: Record<ReviewMetric, number>;
   totalAverage: number;
+  goalProgressAverage: number;
+  goalProgressPointAverage: number;
 };
 
 function average(values: number[]) {
@@ -25,6 +33,10 @@ function formatAverage(value: number) {
   return value.toFixed(1);
 }
 
+function toGoalProgressPoint(value: number) {
+  return Math.round(value * 20);
+}
+
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("ko-KR", {
     dateStyle: "medium",
@@ -33,7 +45,10 @@ function formatDate(value: string) {
 }
 
 function buildGroups(reviews: TrainerReview[]): ReviewGroup[] {
-  const grouped = new Map<string, Omit<ReviewGroup, "averages" | "totalAverage">>();
+  const grouped = new Map<
+    string,
+    Omit<ReviewGroup, "averages" | "totalAverage" | "goalProgressAverage" | "goalProgressPointAverage">
+  >();
 
   reviews.forEach((review) => {
     const key = `${review.branch}:${review.trainer_id ?? review.trainer_name}`;
@@ -61,11 +76,14 @@ function buildGroups(reviews: TrainerReview[]): ReviewGroup[] {
         }),
         {} as Record<ReviewMetric, number>,
       );
+      const goalProgressAverage = average(group.reviews.map((review) => review.goal_progress_score));
 
       return {
         ...group,
         averages,
         totalAverage: average(REVIEW_METRICS.map((metric) => averages[metric.key])),
+        goalProgressAverage,
+        goalProgressPointAverage: toGoalProgressPoint(goalProgressAverage),
       };
     })
     .sort((a, b) => b.totalAverage - a.totalAverage || b.reviews.length - a.reviews.length);
@@ -209,6 +227,9 @@ export function AdminReviewTable() {
                     <span className="rounded-full bg-[#FFF4CA] px-3 py-1 text-base text-[#B67824]">
                       평균 {formatAverage(group.totalAverage)}
                     </span>
+                    <span className="rounded-full bg-[#FFF9EF] px-3 py-1 text-base text-[#6F553C]">
+                      목표 {group.goalProgressPointAverage}점
+                    </span>
                   </h2>
                   <p className="mt-2 text-sm font-bold text-[#262320]/60">평가 {group.reviews.length}개</p>
                 </div>
@@ -217,6 +238,13 @@ export function AdminReviewTable() {
 
               {isExpanded ? (
                 <div className="border-t border-[#EFE0CD] bg-[#FFFCF7] p-5 sm:p-6">
+                  <div className="mb-3 rounded-2xl border border-[#F6C343] bg-[#FFF4CA] p-4">
+                    <p className="text-xs font-black text-[#6F553C]">목표 달성 체감 점수 평균</p>
+                    <strong className="mt-2 block text-3xl font-black text-[#262320]">{group.goalProgressPointAverage}점</strong>
+                    <p className="mt-1 text-xs font-bold text-[#262320]/55">
+                      선택 평균 {formatAverage(group.goalProgressAverage)} / 5를 100점 기준으로 환산
+                    </p>
+                  </div>
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                     {REVIEW_METRICS.map((metric) => (
                       <div key={metric.key} className="rounded-2xl border border-[#EFE0CD] bg-white p-4">
@@ -252,6 +280,13 @@ export function AdminReviewTable() {
                           </div>
                         </dl>
                         <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                          <div className="rounded-2xl border border-[#F6C343] bg-[#FFF4CA] px-4 py-3 sm:col-span-2 lg:col-span-4">
+                            <p className="text-xs font-black text-[#6F553C]">목표 달성 체감 점수</p>
+                            <p className="mt-1 text-lg font-black text-[#262320]">{toGoalProgressPoint(review.goal_progress_score)}점</p>
+                            <p className="mt-1 text-sm font-bold leading-6 text-[#262320]/70">
+                              {GOAL_PROGRESS_LABELS[review.goal_progress_score] ?? "선택 문장을 확인할 수 없습니다."}
+                            </p>
+                          </div>
                           {REVIEW_METRICS.map((metric) => (
                             <div key={metric.key} className="rounded-2xl bg-[#FFF9EF] px-4 py-3">
                               <p className="text-xs font-black text-[#262320]/50">{metric.label}</p>

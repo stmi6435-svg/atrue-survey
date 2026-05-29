@@ -16,6 +16,7 @@ create table if not exists public.trainer_reviews (
   branch text not null check (branch in ('munjeong', 'dapsimni', 'bulgwang')),
   trainer_id uuid references public.trainers(id) on delete set null,
   trainer_name text not null,
+  goal_progress_score integer not null check (goal_progress_score between 1 and 5),
   member_name text,
   phone_last4 text check (phone_last4 is null or phone_last4 ~ '^[0-9]{4}$'),
   pt_session_count integer check (pt_session_count is null or pt_session_count >= 0),
@@ -55,6 +56,29 @@ create index if not exists trainer_reviews_branch_trainer_idx
 
 create index if not exists trainer_reviews_created_at_idx
   on public.trainer_reviews (created_at desc);
+
+alter table public.trainer_reviews
+  add column if not exists goal_progress_score integer;
+
+update public.trainer_reviews
+set goal_progress_score = 3
+where goal_progress_score is null;
+
+alter table public.trainer_reviews
+  alter column goal_progress_score set not null;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'trainer_reviews_goal_progress_score_check'
+  ) then
+    alter table public.trainer_reviews
+      add constraint trainer_reviews_goal_progress_score_check
+      check (goal_progress_score between 1 and 5);
+  end if;
+end $$;
 
 alter table public.trainers enable row level security;
 alter table public.trainer_reviews enable row level security;
@@ -96,6 +120,7 @@ create policy "Public can submit trainer reviews"
     and session_log_score between 1 and 5
     and kindness_score between 1 and 5
     and schedule_coordination_score between 1 and 5
+    and goal_progress_score between 1 and 5
   );
 
 create policy "Admin UI can view trainer reviews"
