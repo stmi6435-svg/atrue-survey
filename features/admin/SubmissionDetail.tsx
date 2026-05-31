@@ -53,7 +53,7 @@ export function SubmissionDetail({ id }: { id: string }) {
 
     try {
       await deleteSurveySubmission(submission.id);
-      router.push("/admin");
+      router.push("/admin/surveys");
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "설문 삭제에 실패했습니다.");
     }
@@ -69,7 +69,7 @@ export function SubmissionDetail({ id }: { id: string }) {
     <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-5xl">
         <header className="mb-6 rounded-[28px] border border-oatmeal bg-ivory/95 p-5 shadow-soft sm:p-7">
-          <Link href="/admin" className="inline-flex items-center gap-2 text-sm font-bold text-cocoa">
+          <Link href="/admin/surveys" className="inline-flex items-center gap-2 text-sm font-bold text-cocoa">
             <ArrowLeft size={16} aria-hidden />
             관리자 목록
           </Link>

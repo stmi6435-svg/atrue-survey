@@ -113,6 +113,12 @@ export function AdminDashboard() {
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
               <Link
+                href="/admin"
+                className="inline-flex h-11 items-center justify-center rounded-2xl border border-[#EFE0CD] bg-white px-5 text-sm font-bold text-[#262320] shadow-sm transition hover:border-[#6F553C]"
+              >
+                통합 관리자
+              </Link>
+              <Link
                 href="/"
                 className="inline-flex h-11 items-center justify-center rounded-2xl border border-[#EFE0CD] bg-white px-5 text-sm font-bold text-[#262320] shadow-sm transition hover:border-[#6F553C]"
               >
