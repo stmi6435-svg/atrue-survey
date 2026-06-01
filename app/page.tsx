@@ -1,5 +1,5 @@
-import { SurveyApp } from "@/features/survey/SurveyApp";
+import { RootPage } from "@/features/RootPage";
 
 export default function Home() {
-  return <SurveyApp />;
+  return <RootPage />;
 }

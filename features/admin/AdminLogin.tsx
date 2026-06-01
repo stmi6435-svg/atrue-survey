@@ -92,6 +92,13 @@ export function AdminLogin() {
           >
             {isSubmitting ? "로그인 중..." : "로그인"}
           </button>
+
+          <Link
+            href="/admin/forgot-password"
+            className="justify-self-center text-sm font-bold text-[#6F553C] underline-offset-4 hover:underline"
+          >
+            비밀번호를 잊으셨나요?
+          </Link>
         </form>
 
         <Link href="/" className="mt-6 inline-flex text-sm font-bold text-[#6F553C] underline-offset-4 hover:underline">
