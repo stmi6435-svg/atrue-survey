@@ -21,7 +21,17 @@ type RankingItem = BranchSummary & {
 };
 
 function average(values: number[]) {
-  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
+  const safeValues = Array.isArray(values) ? values.filter((value) => typeof value === "number") : [];
+  if (safeValues.length === 0) {
+    return null;
+  }
+
+  let sum = 0;
+  for (const value of safeValues) {
+    sum += value;
+  }
+
+  return sum / safeValues.length;
 }
 
 function toGoalProgressPoint(value: number) {
@@ -38,7 +48,8 @@ function formatPoint(value: number | null) {
 
 function buildBranchSummaries(reviews: TrainerReview[]): BranchSummary[] {
   return BRANCH_OPTIONS.map((branchOption) => {
-    const branchReviews = reviews.filter((review) => review.branch === branchOption.id);
+    const safeReviews = Array.isArray(reviews) ? reviews : [];
+    const branchReviews = safeReviews.filter((review) => review.branch === branchOption.id);
     const metricAverages = REVIEW_METRICS.map((metric) => average(branchReviews.map((review) => review[metric.key])));
     const validMetricAverages = metricAverages.filter((value): value is number => value !== null);
     const averageRating = average(validMetricAverages);

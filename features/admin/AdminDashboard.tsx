@@ -37,18 +37,20 @@ export function AdminDashboard() {
   }, []);
 
   const filteredSubmissions = useMemo(() => {
+    const safeSubmissions = safeArray(submissions) as SurveySubmission[];
+
     if (selectedBranch === "all") {
-      return submissions;
+      return safeSubmissions;
     }
 
-    return submissions.filter((submission) => submission.branch === selectedBranch);
+    return safeSubmissions.filter((submission) => submission.branch === selectedBranch);
   }, [selectedBranch, submissions]);
 
   const stats = useMemo(
     () => ({
-      total: filteredSubmissions.length,
-      trial: filteredSubmissions.filter((submission) => submission.surveyType === "trial").length,
-      consultation: filteredSubmissions.filter((submission) => submission.surveyType === "consultation").length,
+      total: safeArray(filteredSubmissions).length,
+      trial: (safeArray(filteredSubmissions) as SurveySubmission[]).filter((submission) => submission.surveyType === "trial").length,
+      consultation: (safeArray(filteredSubmissions) as SurveySubmission[]).filter((submission) => submission.surveyType === "consultation").length,
     }),
     [filteredSubmissions],
   );
@@ -176,7 +178,7 @@ export function AdminDashboard() {
 
           {isLoading ? (
             <EmptyState message="설문 목록을 불러오는 중입니다." />
-          ) : filteredSubmissions.length === 0 ? (
+          ) : safeArray(filteredSubmissions).length === 0 ? (
             <EmptyState message="해당 지점에 제출된 설문이 없습니다." />
           ) : (
             <>
@@ -218,7 +220,10 @@ function SummaryCard({ icon, label, value }: { icon: React.ReactNode; label: str
 
 function ChartCard({ title, data }: { title: string; data: ChartDatum[] }) {
   const safeData = Array.isArray(data) ? data : [];
-  const total = safeData.reduce((sum, item) => sum + item.value, 0);
+  let total = 0;
+  for (const item of safeData) {
+    total += Number(item?.value || 0);
+  }
 
   return (
     <div className="rounded-3xl border border-[#EFE0CD] bg-white p-5 shadow-[0_18px_60px_rgba(38,35,32,0.10)]">
@@ -231,7 +236,7 @@ function ChartCard({ title, data }: { title: string; data: ChartDatum[] }) {
       </div>
 
       <div className="mt-4 h-56 rounded-3xl bg-[#FFF9EF] px-2 py-3">
-        {safeData.length === 0 ? (
+        {safeArray(safeData).length === 0 ? (
           <div className="flex h-full items-center justify-center text-sm font-semibold text-[#262320]/50">데이터 없음</div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
@@ -428,28 +433,27 @@ function EmptyState({ message }: { message: string }) {
 }
 
 function countSingle(items: SurveySubmission[], selector: (submission: SurveySubmission) => string): ChartDatum[] {
-  return sortChartData(
-    items.reduce<Record<string, number>>((acc, submission) => {
-      const key = safeText(selector(submission));
-      acc[key] = (acc[key] || 0) + 1;
-      return acc;
-    }, {}),
-  );
+  const counts: Record<string, number> = {};
+  for (const submission of safeArray(items) as SurveySubmission[]) {
+    const key = safeText(selector(submission));
+    counts[key] = (counts[key] || 0) + 1;
+  }
+  return sortChartData(counts);
 }
 
 function countMultiple(items: SurveySubmission[], selector: (submission: SurveySubmission) => string[]): ChartDatum[] {
-  return sortChartData(
-    items.reduce<Record<string, number>>((acc, submission) => {
-      const values = safeArray(selector(submission)).map(safeText).filter((value) => value !== "미입력");
-      if (values.length === 0) {
-        acc["미입력"] = (acc["미입력"] || 0) + 1;
-      }
-      values.forEach((value) => {
-        acc[value] = (acc[value] || 0) + 1;
-      });
-      return acc;
-    }, {}),
-  );
+  const counts: Record<string, number> = {};
+  for (const submission of safeArray(items) as SurveySubmission[]) {
+    const values = safeArray(selector(submission)).map(safeText).filter((value) => value !== "미입력");
+    if (safeArray(values).length === 0) {
+      counts["미입력"] = (counts["미입력"] || 0) + 1;
+      continue;
+    }
+    for (const value of values) {
+      counts[value] = (counts[value] || 0) + 1;
+    }
+  }
+  return sortChartData(counts);
 }
 
 function sortChartData(counts: Record<string, number>) {
@@ -468,7 +472,7 @@ function safeText(value: unknown) {
 
 function joinOrFallback(value: unknown) {
   const items = safeArray(value).map(safeText).filter((item) => item !== "미입력");
-  return items.length > 0 ? items.join(", ") : "미입력";
+  return safeArray(items).length > 0 ? items.join(", ") : "미입력";
 }
 
 function formatDate(value: string) {

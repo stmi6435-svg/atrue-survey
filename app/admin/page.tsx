@@ -1,10 +1,10 @@
 import { AdminAuthGuard } from "@/features/admin/AdminAuthGuard";
-import { AdminHome } from "@/features/admin/AdminHome";
+import { AdminDashboard } from "@/features/admin/AdminDashboard";
 
 export default function AdminPage() {
   return (
     <AdminAuthGuard>
-      <AdminHome />
+      <AdminDashboard />
     </AdminAuthGuard>
   );
 }
