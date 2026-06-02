@@ -100,6 +100,7 @@ function fromRow(row: SurveySubmissionRow): SurveySubmission {
     },
     desiredExercises: textOrFallback(row.want_to_learn),
     requestToCoach: textOrFallback(row.request_to_consultant),
+    trial_policy_confirmed: Boolean(row.trial_policy_confirmed),
     privacyConsent: Boolean(row.privacy_agreed),
     status: row.status || "신규",
     submittedAt: row.created_at || new Date(0).toISOString(),

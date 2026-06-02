@@ -33,6 +33,7 @@ export type SurveySubmissionRow = {
   preferred_time_2: string | null;
   want_to_learn: string | null;
   request_to_consultant: string | null;
+  trial_policy_confirmed: boolean | null;
   privacy_agreed: boolean | null;
   status: SubmissionStatus | null;
 };

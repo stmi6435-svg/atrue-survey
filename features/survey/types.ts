@@ -47,6 +47,7 @@ export type SurveyFormData = {
   };
   desiredExercises: string;
   requestToCoach: string;
+  trial_policy_confirmed: boolean;
   privacyConsent: boolean;
 };
 

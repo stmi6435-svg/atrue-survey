@@ -49,6 +49,7 @@ function toInsertPayload(data: SurveySubmission): SurveySubmissionInsert {
     preferred_time_2: data.lifestyle.secondChoiceTime,
     want_to_learn: data.desiredExercises,
     request_to_consultant: data.requestToCoach,
+    trial_policy_confirmed: data.trial_policy_confirmed,
     privacy_agreed: data.privacyConsent,
     status: data.status || "신규",
   };

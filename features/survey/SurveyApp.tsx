@@ -28,8 +28,6 @@ import {
 } from "./constants";
 import type { SurveyFormData, SurveySubmission, SurveyType } from "./types";
 
-const FINAL_REVIEW_STEP = 11;
-
 type FieldErrors = Record<string, string>;
 type NestedFormGroups = Pick<SurveyFormData, "basicInfo" | "bodyInfo" | "health" | "lifestyle">;
 
@@ -42,7 +40,14 @@ export function SurveyApp() {
   const [submitError, setSubmitError] = useState("");
   const [showFullText, setShowFullText] = useState(false);
 
-  const progress = useMemo(() => Math.round(((step + 1) / STEP_TITLES.length) * 100), [step]);
+  const isTrialSurvey = form.surveyType === "trial";
+  const stepTitles = useMemo(
+    () => (isTrialSurvey ? ["체험권 신청 전 안내드려요", ...STEP_TITLES] : STEP_TITLES),
+    [isTrialSurvey],
+  );
+  const contentStep = isTrialSurvey ? step - 1 : step;
+  const finalReviewStep = stepTitles.length - 1;
+  const progress = useMemo(() => Math.round(((step + 1) / stepTitles.length) * 100), [step, stepTitles.length]);
 
   function selectSurveyType(surveyType: SurveyType) {
     setForm({ ...INITIAL_FORM_DATA, surveyType });
@@ -95,15 +100,27 @@ export function SurveyApp() {
       }
     };
 
-    if (step === 0) {
+    if (isTrialSurvey && step === 0) {
+      required(
+        form.trial_policy_confirmed,
+        "trial_policy_confirmed",
+        "안내 내용을 확인하신 후 체크해 주세요.",
+      );
+      setErrors(nextErrors);
+      return Object.keys(nextErrors).length === 0;
+    }
+
+    const currentStep = contentStep;
+
+    if (currentStep === 0) {
       required(Boolean(form.branch), "branch", "신청 지점을 선택해 주세요.");
     }
 
-    if (step === 1) {
+    if (currentStep === 1) {
       required(Boolean(form.source), "source", "어트루짐을 알게 된 경로를 선택해 주세요.");
     }
 
-    if (step === 2) {
+    if (currentStep === 2) {
       required(Boolean(form.basicInfo.name.trim()), "name");
       required(Boolean(form.basicInfo.phone.trim()), "phone");
       required(Boolean(form.basicInfo.age.trim()), "age");
@@ -111,21 +128,21 @@ export function SurveyApp() {
       required(Boolean(form.basicInfo.hobby.trim()), "hobby");
     }
 
-    if (step === 3) {
+    if (currentStep === 3) {
       required(Boolean(form.bodyInfo.gender), "gender");
       required(Boolean(form.bodyInfo.height.trim()), "height");
       required(Boolean(form.bodyInfo.weight.trim()), "weight");
     }
 
-    if (step === 4) {
+    if (currentStep === 4) {
       required(Boolean(form.fitnessExperience), "fitnessExperience", "헬스 경험을 선택해 주세요.");
     }
 
-    if (step === 5) {
+    if (currentStep === 5) {
       required(form.goals.length > 0, "goals", "운동 목적을 하나 이상 선택해 주세요.");
     }
 
-    if (step === 6) {
+    if (currentStep === 6) {
       required(form.health.injuries.length > 0, "injuries", "부상 및 통증 부위를 선택해 주세요.");
       required(form.health.diseases.length > 0, "diseases", "질환 및 질병을 선택해 주세요.");
       required(Boolean(form.health.hasMedicalRestriction), "hasMedicalRestriction", "운동 제한 여부를 선택해 주세요.");
@@ -134,7 +151,7 @@ export function SurveyApp() {
       }
     }
 
-    if (step === 7) {
+    if (currentStep === 7) {
       required(Boolean(form.lifestyle.activityLevel), "activityLevel");
       required(Boolean(form.lifestyle.sleepHours), "sleepHours");
       required(Boolean(form.lifestyle.stressLevel), "stressLevel");
@@ -145,15 +162,15 @@ export function SurveyApp() {
       required(Boolean(form.lifestyle.secondChoiceTime.trim()), "secondChoiceTime");
     }
 
-    if (step === 8) {
+    if (currentStep === 8) {
       required(Boolean(form.desiredExercises.trim()), "desiredExercises", "배워보고 싶은 운동을 적어 주세요.");
     }
 
-    if (step === 9) {
+    if (currentStep === 9) {
       required(Boolean(form.requestToCoach.trim()), "requestToCoach", "상담자에게 바라는 점을 적어 주세요.");
     }
 
-    if (step === 10) {
+    if (currentStep === 10) {
       required(form.privacyConsent, "privacyConsent", "개인정보 수집 및 이용에 동의해 주세요.");
     }
 
@@ -166,7 +183,7 @@ export function SurveyApp() {
       return;
     }
 
-    setStep((current) => Math.min(current + 1, FINAL_REVIEW_STEP));
+    setStep((current) => Math.min(current + 1, finalReviewStep));
     setErrors({});
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -283,7 +300,7 @@ export function SurveyApp() {
         <div className="mt-6">
           <div className="mb-2 flex items-center justify-between text-xs font-bold text-charcoal/60">
             <span>
-              STEP {step + 1} / {STEP_TITLES.length}
+              STEP {step + 1} / {stepTitles.length}
             </span>
             <span>{progress}%</span>
           </div>
@@ -300,17 +317,25 @@ export function SurveyApp() {
 
         <div className="mb-6">
           <p className="text-sm font-semibold text-clay">STEP {step + 1}</p>
-          <h2 className="mt-1 text-2xl font-bold text-charcoal">{STEP_TITLES[step]}</h2>
+          <h2 className="mt-1 text-2xl font-bold text-charcoal">{stepTitles[step]}</h2>
         </div>
 
-        <StepContent
-          form={form}
-          step={step}
-          errors={errors}
-          updateForm={updateForm}
-          updateNested={updateNested}
-          toggleArray={toggleArray}
-        />
+        {isTrialSurvey && step === 0 ? (
+          <TrialPolicyNotice
+            checked={form.trial_policy_confirmed}
+            error={errors.trial_policy_confirmed}
+            onChange={(checked) => updateForm("trial_policy_confirmed", checked)}
+          />
+        ) : (
+          <StepContent
+            form={form}
+            step={contentStep}
+            errors={errors}
+            updateForm={updateForm}
+            updateNested={updateNested}
+            toggleArray={toggleArray}
+          />
+        )}
 
         <div className="mt-8 flex gap-3">
           <button
@@ -323,7 +348,7 @@ export function SurveyApp() {
             이전
           </button>
 
-          {step === FINAL_REVIEW_STEP ? (
+          {step === finalReviewStep ? (
             <div className="flex flex-[1.3] flex-col gap-2">
               <button
                 type="button"
@@ -393,6 +418,49 @@ function Greeting({ surveyType }: { surveyType: SurveyType }) {
       {GREETINGS[surveyType].map((line) => (
         <p key={line}>{line}</p>
       ))}
+    </div>
+  );
+}
+
+function TrialPolicyNotice({
+  checked,
+  error,
+  onChange,
+}: {
+  checked: boolean;
+  error?: string;
+  onChange: (checked: boolean) => void;
+}) {
+  const paragraphs = [
+    "어트루짐 1:1 PT 체험권은\n회원님께 실제 수업을 경험해보실 수 있도록 준비된 프로그램입니다.",
+    "다만, 센터 정책상 패키지 상품 상담을 원하시는 경우에는\n체험권 수업이 아닌 회원권 상담으로 안내드리도록 되어있습니다.",
+    "패키지 상품이 궁금하신 경우에는  PT 체험권이 아닌 회원권 상담으로도 충분히 자세하게 안내받으실 수 있습니다.\n이 점 참고 부탁드리며, 회원권 상담으로 변경부탁드리겠습니다.",
+    "감사합니다.",
+  ];
+
+  return (
+    <div className="grid gap-5">
+      <div className="rounded-3xl border border-oatmeal bg-ivory p-5 text-sm leading-7 text-charcoal/80 shadow-sm">
+        {paragraphs.map((paragraph) => (
+          <p key={paragraph} className="whitespace-pre-line [&+&]:mt-4">
+            {paragraph}
+          </p>
+        ))}
+      </div>
+
+      <FieldBlock error={error}>
+        <label className="flex cursor-pointer gap-3 rounded-3xl border border-oatmeal bg-white p-5 transition hover:border-cocoa">
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={(event) => onChange(event.target.checked)}
+            className="mt-1 h-5 w-5 shrink-0 accent-charcoal"
+          />
+          <span className="text-sm font-semibold leading-7 text-charcoal/80">
+            위 내용을 확인했으며, 체험권 신청을 계속 진행하겠습니다.
+          </span>
+        </label>
+      </FieldBlock>
     </div>
   );
 }

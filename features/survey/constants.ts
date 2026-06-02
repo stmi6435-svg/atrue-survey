@@ -161,6 +161,7 @@ export const INITIAL_FORM_DATA: SurveyFormData = {
   },
   desiredExercises: "",
   requestToCoach: "",
+  trial_policy_confirmed: false,
   privacyConsent: false,
 };
 
