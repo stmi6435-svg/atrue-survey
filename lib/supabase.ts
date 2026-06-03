@@ -236,7 +236,18 @@ export type Database = {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      delete_satisfaction_response: {
+        Args: {
+          p_response_id: string;
+        };
+        Returns: {
+          deleted_count: number;
+          response_id: string;
+          success: boolean;
+        };
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };

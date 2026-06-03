@@ -462,6 +462,45 @@ create trigger satisfaction_answers_hydrate_snapshots
 before insert or update on public.satisfaction_answers
 for each row execute function public.hydrate_satisfaction_answer_snapshots();
 
+drop function if exists public.delete_satisfaction_response(uuid);
+
+create function public.delete_satisfaction_response(p_response_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  deleted_response_count integer := 0;
+begin
+  if coalesce(auth.role(), '') <> 'authenticated' then
+    raise exception 'authenticated role required'
+      using errcode = '42501';
+  end if;
+
+  delete from public.satisfaction_response_events
+  where response_id = p_response_id;
+
+  delete from public.satisfaction_answers
+  where response_id = p_response_id;
+
+  delete from public.satisfaction_responses
+  where id = p_response_id;
+
+  get diagnostics deleted_response_count = row_count;
+
+  return jsonb_build_object(
+    'success', deleted_response_count > 0,
+    'response_id', p_response_id,
+    'deleted_count', deleted_response_count
+  );
+end;
+$$;
+
+revoke all on function public.delete_satisfaction_response(uuid) from public;
+revoke execute on function public.delete_satisfaction_response(uuid) from anon;
+grant execute on function public.delete_satisfaction_response(uuid) to authenticated;
+
 create or replace function public.can_submit_satisfaction_answer(
   p_response_id uuid,
   p_question_id uuid
@@ -526,15 +565,18 @@ drop policy if exists "Public can insert satisfaction responses" on public.satis
 drop policy if exists "Authenticated admins can view responses" on public.satisfaction_responses;
 drop policy if exists "Authenticated admins can insert responses" on public.satisfaction_responses;
 drop policy if exists "Authenticated admins can update responses" on public.satisfaction_responses;
+drop policy if exists "Authenticated admins can delete responses" on public.satisfaction_responses;
 
 drop policy if exists "Public can insert satisfaction answers" on public.satisfaction_answers;
 drop policy if exists "Authenticated admins can view answers" on public.satisfaction_answers;
 drop policy if exists "Authenticated admins can insert answers" on public.satisfaction_answers;
 drop policy if exists "Authenticated admins can update answers" on public.satisfaction_answers;
+drop policy if exists "Authenticated admins can delete answers" on public.satisfaction_answers;
 
 drop policy if exists "Authenticated admins can view response events" on public.satisfaction_response_events;
 drop policy if exists "Authenticated admins can insert response events" on public.satisfaction_response_events;
 drop policy if exists "Authenticated admins can update response events" on public.satisfaction_response_events;
+drop policy if exists "Authenticated admins can delete response events" on public.satisfaction_response_events;
 
 create policy "Public can view active branches"
 on public.branches
@@ -728,6 +770,12 @@ to authenticated
 using (true)
 with check (true);
 
+create policy "Authenticated admins can delete responses"
+on public.satisfaction_responses
+for delete
+to authenticated
+using (true);
+
 create policy "Public can insert satisfaction answers"
 on public.satisfaction_answers
 for insert
@@ -755,6 +803,12 @@ to authenticated
 using (true)
 with check (true);
 
+create policy "Authenticated admins can delete answers"
+on public.satisfaction_answers
+for delete
+to authenticated
+using (true);
+
 create policy "Authenticated admins can view response events"
 on public.satisfaction_response_events
 for select
@@ -773,6 +827,12 @@ for update
 to authenticated
 using (true)
 with check (true);
+
+create policy "Authenticated admins can delete response events"
+on public.satisfaction_response_events
+for delete
+to authenticated
+using (true);
 
 insert into public.branches (id, name, display_order, is_active)
 values

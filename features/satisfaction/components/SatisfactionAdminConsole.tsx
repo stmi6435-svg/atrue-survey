@@ -16,6 +16,7 @@ import {
   RefreshCw,
   Save,
   Star,
+  Trash2,
   UsersRound,
 } from "lucide-react";
 import Link from "next/link";
@@ -117,6 +118,12 @@ type ResponseDraft = {
   status: ResponseStatus;
   admin_note: string;
   assigned_to: string;
+};
+
+type DeleteSatisfactionResponseResult = {
+  deleted_count: number;
+  response_id: string;
+  success: boolean;
 };
 
 const EMPTY_DATA: AdminData = {
@@ -312,6 +319,39 @@ function getScopedResponses({
 
     return belongsToDateFilter(response, dateFilter);
   });
+}
+
+async function deleteSatisfactionResponseRows(responseId: string) {
+  const trimmedResponseId = responseId.trim();
+  if (!trimmedResponseId) {
+    throw new Error("삭제할 응답 ID가 없습니다.");
+  }
+
+  console.log("delete responseId", trimmedResponseId);
+
+  const supabase = getSupabaseClient();
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) {
+    throw sessionError;
+  }
+
+  if (!sessionData.session) {
+    throw new Error("회원 만족도 응답 삭제는 Supabase 관리자 로그인이 필요합니다.");
+  }
+
+  const { data, error } = await supabase.rpc("delete_satisfaction_response", { p_response_id: trimmedResponseId });
+  if (error) {
+    throw error;
+  }
+
+  const result = data as DeleteSatisfactionResponseResult | null;
+  console.log("delete satisfaction response result", result);
+
+  return {
+    deletedCount: Number(result?.deleted_count ?? 0),
+    responseId: result?.response_id ?? trimmedResponseId,
+    success: Boolean(result?.success),
+  };
 }
 
 function getAnswerQuestionText(answer: SatisfactionAnswer, questionMap: Map<string, SatisfactionQuestion>) {
@@ -580,6 +620,7 @@ export function SatisfactionAdminConsole({ activeTab }: { activeTab: AdminTab })
 
   const [responseDrafts, setResponseDrafts] = useState<Record<string, ResponseDraft>>({});
   const [selectedResponseId, setSelectedResponseId] = useState<string | null>(null);
+  const [deletingResponseId, setDeletingResponseId] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -664,6 +705,19 @@ export function SatisfactionAdminConsole({ activeTab }: { activeTab: AdminTab })
   function showError(error: unknown, fallback: string) {
     setSuccessMessage("");
     setErrorMessage(error instanceof Error ? error.message : fallback);
+  }
+
+  function logSupabaseError(label: string, error: unknown, context?: Record<string, unknown>) {
+    const supabaseError = error as { code?: unknown; message?: unknown; details?: unknown; hint?: unknown; status?: unknown; statusCode?: unknown };
+    console.error(label, {
+      ...context,
+      status: supabaseError.status ?? supabaseError.statusCode,
+      code: supabaseError.code,
+      message: supabaseError.message,
+      details: supabaseError.details,
+      hint: supabaseError.hint,
+      raw: error,
+    });
   }
 
   const questionMap = useMemo(() => new Map(data.questions.map((question) => [question.id, question])), [data.questions]);
@@ -1105,6 +1159,63 @@ export function SatisfactionAdminConsole({ activeTab }: { activeTab: AdminTab })
     }
   }
 
+  async function deleteSatisfactionResponse(responseId: string) {
+    const targetResponseId = responseId?.trim();
+    console.log("delete responseId", targetResponseId);
+    if (!targetResponseId) {
+      const message = "삭제할 응답 ID가 없습니다.";
+      console.error("응답 삭제 ID 누락", { responseId });
+      setSuccessMessage("");
+      setErrorMessage(message);
+      return;
+    }
+
+    const isConfirmed = window.confirm("이 응답을 삭제하시겠습니까?\n테스트 응답 삭제 용도로만 사용해주세요.\n삭제 후 복구할 수 없습니다.");
+    if (!isConfirmed) {
+      return;
+    }
+
+    setDeletingResponseId(targetResponseId);
+
+    try {
+      const deleteResult = await deleteSatisfactionResponseRows(targetResponseId);
+      if (deleteResult.deletedCount < 1 || !deleteResult.success) {
+        const message = "삭제할 응답을 찾지 못했습니다.";
+        console.error("응답 삭제 0건", {
+          responseId: targetResponseId,
+          deletedCount: deleteResult.deletedCount,
+          rpcResponseId: deleteResult.responseId,
+          success: deleteResult.success,
+          message,
+        });
+        setSuccessMessage("");
+        setErrorMessage(message);
+        await loadData();
+        return;
+      }
+
+      setSelectedResponseId((current) => (current === targetResponseId ? null : current));
+      setResponseDrafts((current) => {
+        const next = { ...current };
+        delete next[targetResponseId];
+        return next;
+      });
+      setData((current) => ({
+        ...current,
+        responses: current.responses.filter((response) => response.id !== targetResponseId),
+        answers: current.answers.filter((answer) => answer.response_id !== targetResponseId),
+        events: current.events.filter((event) => event.response_id !== targetResponseId),
+      }));
+      showSuccess("응답이 삭제되었습니다.");
+      await loadData();
+    } catch (error) {
+      logSupabaseError("응답 삭제 실패", error, { responseId: targetResponseId });
+      showError(error, "응답 삭제에 실패했습니다.");
+    } finally {
+      setDeletingResponseId((current) => (current === targetResponseId ? null : current));
+    }
+  }
+
   const selectedResponse = selectedResponseId ? data.responses.find((response) => response.id === selectedResponseId) ?? null : null;
 
   return (
@@ -1166,7 +1277,9 @@ export function SatisfactionAdminConsole({ activeTab }: { activeTab: AdminTab })
           isLoading={isLoading}
           kindnessAverage={kindnessAverage}
           needsReviewCount={scopedResponses.filter((response) => response.status === "needs_review" || response.status === "in_progress").length}
+          deletingResponseId={deletingResponseId}
           recommendRate={recommendRate}
+          recentResponses={scopedResponses.slice(0, 6)}
           retentionRate={retentionRate}
           responseCount={scopedResponses.length}
           staffMentionRows={staffMentionRows}
@@ -1175,6 +1288,7 @@ export function SatisfactionAdminConsole({ activeTab }: { activeTab: AdminTab })
           totalAverage={totalAverage}
           onBranchFilterChange={setBranchFilter}
           onDateFilterChange={setDateFilter}
+          onDeleteResponse={deleteSatisfactionResponse}
           onSurveyFilterChange={setSurveyFilter}
         />
       ) : null}
@@ -1186,6 +1300,7 @@ export function SatisfactionAdminConsole({ activeTab }: { activeTab: AdminTab })
           branchFilter={branchFilter}
           dateFilter={dateFilter}
           events={data.events}
+          deletingResponseId={deletingResponseId}
           filteredResponses={filteredResponses}
           isLoading={isLoading}
           lowOnly={lowOnly}
@@ -1202,6 +1317,7 @@ export function SatisfactionAdminConsole({ activeTab }: { activeTab: AdminTab })
           onDateFilterChange={setDateFilter}
           onDraftChange={(responseId, draft) => setResponseDrafts((current) => ({ ...current, [responseId]: draft }))}
           onLowOnlyChange={setLowOnly}
+          onDeleteResponse={deleteSatisfactionResponse}
           onSaveResponse={saveResponse}
           onSelectResponse={setSelectedResponseId}
           onStatusFilterChange={setResponseStatusFilter}
@@ -1359,11 +1475,13 @@ function DashboardView({
   choiceStats,
   cleanlinessAverage,
   dateFilter,
+  deletingResponseId,
   facilityAverage,
   isLoading,
   kindnessAverage,
   needsReviewCount,
   recommendRate,
+  recentResponses,
   responseCount,
   retentionRate,
   staffMentionRows,
@@ -1372,6 +1490,7 @@ function DashboardView({
   totalAverage,
   onBranchFilterChange,
   onDateFilterChange,
+  onDeleteResponse,
   onSurveyFilterChange,
 }: {
   activeSurvey: SatisfactionSurvey | null;
@@ -1389,11 +1508,13 @@ function DashboardView({
   choiceStats: Array<{ questionId: string; questionText: string; rows: Array<{ label: string; count: number }> }>;
   cleanlinessAverage: number | null;
   dateFilter: DateFilter;
+  deletingResponseId: string | null;
   facilityAverage: number | null;
   isLoading: boolean;
   kindnessAverage: number | null;
   needsReviewCount: number;
   recommendRate: number | null;
+  recentResponses: SatisfactionResponse[];
   responseCount: number;
   retentionRate: number | null;
   staffMentionRows: Array<{ key: string; name: string; role: string; branchName: string; positiveCount: number; improvementCount: number }>;
@@ -1402,6 +1523,7 @@ function DashboardView({
   totalAverage: number | null;
   onBranchFilterChange: (value: BranchFilter) => void;
   onDateFilterChange: (value: DateFilter) => void;
+  onDeleteResponse: (responseId: string) => Promise<void>;
   onSurveyFilterChange: (value: string) => void;
 }) {
   const report = buildRuleReport({
@@ -1466,6 +1588,55 @@ function DashboardView({
         </div>
       </section>
 
+      <section className="rounded-3xl border border-oatmeal bg-white p-5 shadow-soft">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-xl font-bold">최근 응답</h2>
+            <p className="mt-1 text-sm text-charcoal/60">현재 필터에 해당하는 최근 응답입니다. 테스트 응답은 여기서도 삭제할 수 있습니다.</p>
+          </div>
+          <Link href="/admin/satisfaction/responses" className="inline-flex h-10 items-center justify-center rounded-2xl border border-oatmeal bg-ivory px-4 text-sm font-bold text-cocoa transition hover:border-sand">
+            전체 응답 보기
+          </Link>
+        </div>
+
+        {isLoading ? <EmptyBox message="최근 응답을 불러오는 중입니다." /> : null}
+        {!isLoading && recentResponses.length === 0 ? <EmptyBox message="최근 응답이 없습니다." /> : null}
+        {!isLoading && recentResponses.length > 0 ? (
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full min-w-[720px] text-left text-sm">
+              <thead className="text-xs font-bold uppercase tracking-[0.12em] text-cocoa">
+                <tr>
+                  <th className="px-4 py-3">제출일</th>
+                  <th className="px-4 py-3">지점</th>
+                  <th className="px-4 py-3">상태</th>
+                  <th className="px-4 py-3">관리</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-oatmeal">
+                {recentResponses.map((response) => (
+                  <tr key={response.id}>
+                    <td className="px-4 py-3">{formatDate(response.submitted_at)}</td>
+                    <td className="px-4 py-3 font-bold">{getBranchName(branches, response.branch_id)}</td>
+                    <td className="px-4 py-3">{getResponseStatusLabel(response.status)}</td>
+                    <td className="px-4 py-3">
+                      <button
+                        type="button"
+                        disabled={deletingResponseId === response.id}
+                        onClick={() => void onDeleteResponse(response.id)}
+                        className="inline-flex items-center gap-1 rounded-2xl border border-red-300 bg-white px-3 py-2 text-xs font-bold text-red-600 transition hover:border-red-500 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <Trash2 size={13} aria-hidden />
+                        {deletingResponseId === response.id ? "삭제 중" : "삭제"}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+      </section>
+
       <section className="grid gap-4 xl:grid-cols-2">
         <div className="rounded-3xl border border-oatmeal bg-white p-5 shadow-soft">
           <h2 className="text-xl font-bold">직원별 친절/개선 언급 수</h2>
@@ -1521,6 +1692,7 @@ function ResponsesView({
   branchFilter,
   dateFilter,
   events,
+  deletingResponseId,
   filteredResponses,
   isLoading,
   lowOnly,
@@ -1537,6 +1709,7 @@ function ResponsesView({
   onDateFilterChange,
   onDraftChange,
   onLowOnlyChange,
+  onDeleteResponse,
   onSaveResponse,
   onSelectResponse,
   onStatusFilterChange,
@@ -1548,6 +1721,7 @@ function ResponsesView({
   branchFilter: BranchFilter;
   dateFilter: DateFilter;
   events: SatisfactionResponseEvent[];
+  deletingResponseId: string | null;
   filteredResponses: SatisfactionResponse[];
   isLoading: boolean;
   lowOnly: boolean;
@@ -1564,6 +1738,7 @@ function ResponsesView({
   onDateFilterChange: (value: DateFilter) => void;
   onDraftChange: (responseId: string, draft: ResponseDraft) => void;
   onLowOnlyChange: (value: boolean) => void;
+  onDeleteResponse: (responseId: string) => Promise<void>;
   onSaveResponse: (responseId: string) => Promise<void>;
   onSelectResponse: (responseId: string | null) => void;
   onStatusFilterChange: (value: ResponseStatus | "all") => void;
@@ -1675,6 +1850,15 @@ function ResponsesView({
                           </button>
                           <button type="button" onClick={() => void onSaveResponse(response.id)} className="rounded-2xl bg-charcoal px-3 py-2 text-xs font-bold text-ivory">
                             저장
+                          </button>
+                          <button
+                            type="button"
+                            disabled={deletingResponseId === response.id}
+                            onClick={() => void onDeleteResponse(response.id)}
+                            className="inline-flex items-center gap-1 rounded-2xl border border-red-300 bg-white px-3 py-2 text-xs font-bold text-red-600 transition hover:border-red-500 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <Trash2 size={13} aria-hidden />
+                            {deletingResponseId === response.id ? "삭제 중" : "삭제"}
                           </button>
                         </div>
                       </td>
