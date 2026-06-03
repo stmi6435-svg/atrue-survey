@@ -1,6 +1,22 @@
 import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { BranchId, Trainer, TrainerReview } from "@/features/trainer-review/types";
+import type {
+  Branch,
+  SatisfactionAnswer,
+  SatisfactionAnswerInsert,
+  SatisfactionAnswerUpdate,
+  SatisfactionQuestion,
+  SatisfactionQuestionOption,
+  SatisfactionResponse,
+  SatisfactionResponseEvent,
+  SatisfactionResponseEventInsert,
+  SatisfactionResponseEventUpdate,
+  SatisfactionResponseInsert,
+  SatisfactionResponseUpdate,
+  SatisfactionSurvey,
+  Staff,
+} from "@/features/satisfaction/types";
+import type { BranchId as TrainerBranchId, Trainer, TrainerReview } from "@/features/trainer-review/types";
 import type { SubmissionStatus, SurveySubmission } from "@/features/survey/types";
 
 export type SurveySubmissionRow = {
@@ -41,7 +57,7 @@ export type SurveySubmissionRow = {
 export type SurveySubmissionInsert = Omit<SurveySubmissionRow, "id" | "created_at">;
 
 export type TrainerInsert = {
-  branch: BranchId;
+  branch: TrainerBranchId;
   name: string;
   is_active?: boolean;
 };
@@ -49,7 +65,7 @@ export type TrainerInsert = {
 export type TrainerUpdate = Partial<Pick<Trainer, "branch" | "name" | "is_active">>;
 
 export type TrainerReviewInsert = {
-  branch: BranchId;
+  branch: TrainerBranchId;
   trainer_id: string;
   trainer_name: string;
   goal_progress_score: number;
@@ -87,6 +103,133 @@ export type Database = {
             foreignKeyName: "trainer_reviews_trainer_id_fkey";
             columns: ["trainer_id"];
             referencedRelation: "trainers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      branches: {
+        Row: Branch;
+        Insert: Omit<Branch, "created_at" | "updated_at"> & {
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Omit<Branch, "id" | "created_at" | "updated_at">>;
+        Relationships: [];
+      };
+      staff: {
+        Row: Staff;
+        Insert: Omit<Staff, "id" | "created_at" | "updated_at"> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Omit<Staff, "id" | "created_at" | "updated_at">>;
+        Relationships: [
+          {
+            foreignKeyName: "staff_branch_id_fkey";
+            columns: ["branch_id"];
+            referencedRelation: "branches";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      satisfaction_surveys: {
+        Row: SatisfactionSurvey;
+        Insert: Omit<SatisfactionSurvey, "id" | "created_at" | "updated_at"> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Omit<SatisfactionSurvey, "id" | "created_at" | "updated_at">>;
+        Relationships: [];
+      };
+      satisfaction_questions: {
+        Row: SatisfactionQuestion;
+        Insert: Omit<SatisfactionQuestion, "id" | "created_at" | "updated_at"> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Omit<SatisfactionQuestion, "id" | "created_at" | "updated_at">>;
+        Relationships: [
+          {
+            foreignKeyName: "satisfaction_questions_survey_id_fkey";
+            columns: ["survey_id"];
+            referencedRelation: "satisfaction_surveys";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      satisfaction_question_options: {
+        Row: SatisfactionQuestionOption;
+        Insert: Omit<SatisfactionQuestionOption, "id" | "created_at" | "updated_at"> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Omit<SatisfactionQuestionOption, "id" | "created_at" | "updated_at">>;
+        Relationships: [
+          {
+            foreignKeyName: "satisfaction_question_options_question_id_fkey";
+            columns: ["question_id"];
+            referencedRelation: "satisfaction_questions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      satisfaction_responses: {
+        Row: SatisfactionResponse;
+        Insert: SatisfactionResponseInsert;
+        Update: SatisfactionResponseUpdate;
+        Relationships: [
+          {
+            foreignKeyName: "satisfaction_responses_survey_id_fkey";
+            columns: ["survey_id"];
+            referencedRelation: "satisfaction_surveys";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "satisfaction_responses_branch_id_fkey";
+            columns: ["branch_id"];
+            referencedRelation: "branches";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      satisfaction_answers: {
+        Row: SatisfactionAnswer;
+        Insert: SatisfactionAnswerInsert;
+        Update: SatisfactionAnswerUpdate;
+        Relationships: [
+          {
+            foreignKeyName: "satisfaction_answers_response_id_fkey";
+            columns: ["response_id"];
+            referencedRelation: "satisfaction_responses";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "satisfaction_answers_question_id_fkey";
+            columns: ["question_id"];
+            referencedRelation: "satisfaction_questions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "satisfaction_answers_staff_id_fkey";
+            columns: ["staff_id"];
+            referencedRelation: "staff";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      satisfaction_response_events: {
+        Row: SatisfactionResponseEvent;
+        Insert: SatisfactionResponseEventInsert;
+        Update: SatisfactionResponseEventUpdate;
+        Relationships: [
+          {
+            foreignKeyName: "satisfaction_response_events_response_id_fkey";
+            columns: ["response_id"];
+            referencedRelation: "satisfaction_responses";
             referencedColumns: ["id"];
           },
         ];

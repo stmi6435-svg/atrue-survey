@@ -1,13 +1,15 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase";
 
 export function AdminAuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [isChecking, setIsChecking] = useState(true);
   const [isAllowed, setIsAllowed] = useState(false);
+  const loginPath = pathname && pathname !== "/admin" ? `/admin/login?next=${encodeURIComponent(pathname)}` : "/admin/login";
 
   useEffect(() => {
     const supabase = getSupabaseClient();
@@ -16,7 +18,7 @@ export function AdminAuthGuard({ children }: { children: React.ReactNode }) {
       const { data } = await supabase.auth.getSession();
 
       if (!data.session) {
-        router.replace("/admin/login");
+        router.replace(loginPath);
         return;
       }
 
@@ -29,14 +31,14 @@ export function AdminAuthGuard({ children }: { children: React.ReactNode }) {
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session) {
         setIsAllowed(false);
-        router.replace("/admin/login");
+        router.replace(loginPath);
       }
     });
 
     return () => {
       listener.subscription.unsubscribe();
     };
-  }, [router]);
+  }, [loginPath, router]);
 
   if (isChecking || !isAllowed) {
     return (

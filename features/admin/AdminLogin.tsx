@@ -6,20 +6,36 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase";
 
+function getSafeNextPath() {
+  if (typeof window === "undefined") {
+    return "/admin";
+  }
+
+  const next = new URLSearchParams(window.location.search).get("next");
+  if (!next || !next.startsWith("/") || next.startsWith("//")) {
+    return "/admin";
+  }
+
+  return next;
+}
+
 export function AdminLogin() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [redirectTarget, setRedirectTarget] = useState("/admin");
 
   useEffect(() => {
     const supabase = getSupabaseClient();
+    const target = getSafeNextPath();
+    setRedirectTarget(target);
 
     async function redirectIfLoggedIn() {
       const { data } = await supabase.auth.getSession();
       if (data.session) {
-        router.replace("/admin");
+        router.replace(target);
       }
     }
 
@@ -44,7 +60,7 @@ export function AdminLogin() {
       return;
     }
 
-    router.replace("/admin");
+    router.replace(redirectTarget);
   }
 
   return (
