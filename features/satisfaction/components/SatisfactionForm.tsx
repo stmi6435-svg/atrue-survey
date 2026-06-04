@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, CheckCircle2, Loader2, Send } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, Send, Star } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
@@ -119,6 +119,10 @@ function QuestionCard({
   disabled: boolean;
   onChange: (answer: SatisfactionAnswerDraft) => void;
 }) {
+  const [hoveredRating, setHoveredRating] = useState<number | null>(null);
+  const ratingValue = answer?.rating_value ?? 0;
+  const previewRating = hoveredRating ?? ratingValue;
+
   return (
     <fieldset className="rounded-2xl border border-oatmeal bg-white p-4 sm:p-5">
       <legend className="px-1 text-base font-black leading-6 text-charcoal">
@@ -128,24 +132,29 @@ function QuestionCard({
       {question.placeholder ? <p className="mt-2 text-sm font-medium leading-6 text-charcoal/60">{question.placeholder}</p> : null}
 
       {question.question_type === "rating" ? (
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-4 flex flex-wrap items-center gap-1.5 sm:gap-2" onMouseLeave={() => setHoveredRating(null)}>
           {SCORE_VALUES.map((score) => {
-            const isSelected = answer?.rating_value === score;
+            const isFilled = score <= previewRating;
             return (
               <button
                 key={score}
                 type="button"
-                aria-pressed={isSelected}
+                aria-label={`5점 중 ${score}점 선택`}
+                aria-pressed={ratingValue === score}
                 disabled={disabled}
+                onBlur={() => setHoveredRating(null)}
+                onFocus={() => setHoveredRating(score)}
+                onMouseEnter={() => setHoveredRating(score)}
                 onClick={() => onChange({ rating_value: score })}
-                className={`h-12 w-12 rounded-2xl border text-lg font-black transition disabled:cursor-not-allowed disabled:opacity-60 ${
-                  isSelected ? "border-clay bg-clay text-white shadow-soft" : "border-oatmeal bg-ivory text-cocoa hover:border-clay"
-                }`}
+                className="flex h-12 w-12 items-center justify-center rounded-2xl text-4xl leading-none transition hover:scale-105 focus:outline-none focus:ring-2 focus:ring-[#F6C343] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 sm:h-14 sm:w-14 sm:text-5xl"
               >
-                {score}
+                <Star className={isFilled ? "h-9 w-9 fill-current text-[#F6C343] drop-shadow-sm sm:h-10 sm:w-10" : "h-9 w-9 fill-transparent text-[#D8CABA] sm:h-10 sm:w-10"} aria-hidden />
               </button>
             );
           })}
+          <span className="ml-1 rounded-full bg-[#FFF9EF] px-3 py-1 text-sm font-black text-[#6F553C]">
+            {ratingValue ? `${ratingValue}점` : "미선택"}
+          </span>
         </div>
       ) : null}
 
