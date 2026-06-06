@@ -1,8 +1,5 @@
 "use client";
 
-import { ArrowRight, ClipboardList, LogOut, MessageSquareText, Star, UsersRound } from "lucide-react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { BRANCH_LABELS, BRANCH_OPTIONS, REVIEW_METRICS } from "@/features/trainer-review/constants";
 import type { BranchId, TrainerReview } from "@/features/trainer-review/types";
@@ -99,7 +96,6 @@ async function fetchSatisfactionSummary(): Promise<SatisfactionSummary> {
 }
 
 export function AdminHome() {
-  const router = useRouter();
   const [trainerReviews, setTrainerReviews] = useState<TrainerReview[]>([]);
   const [satisfactionSummary, setSatisfactionSummary] = useState<SatisfactionSummary>({
     totalResponses: 0,
@@ -143,72 +139,24 @@ export function AdminHome() {
     [trainerBranchSummaries],
   );
 
-  async function handleLogout() {
-    const supabase = getSupabaseClient();
-    await supabase.auth.signOut();
-    router.replace("/admin/login");
-  }
-
   return (
-    <main className="min-h-screen bg-ivory px-4 py-5 text-charcoal sm:px-6 sm:py-8 lg:px-8">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
+    <div className="text-charcoal">
+      <div className="flex w-full flex-col gap-6">
         <header className="rounded-3xl border border-oatmeal bg-white p-5 shadow-soft sm:p-7">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-clay">ATRUEGYM ADMIN</p>
-              <h1 className="mt-2 text-3xl font-bold leading-tight sm:text-4xl">통합 관리자 홈</h1>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-charcoal/65">
-                회원 만족도 조사, PT 평가, 트레이너, 기존 설문 관리를 한 곳에서 확인하고 이동합니다.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-charcoal px-5 text-sm font-bold text-ivory shadow-sm transition hover:bg-cocoa lg:self-start"
-            >
-              <LogOut size={16} aria-hidden />
-              로그아웃
-            </button>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-clay">DASHBOARD PREVIEW</p>
+            <h1 className="mt-2 text-3xl font-bold leading-tight sm:text-4xl">관리자 대시보드</h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-charcoal/65">
+              분기별 설문조사와 트레이너 평가의 핵심 지표만 간단히 확인하는 요약 화면입니다.
+            </p>
           </div>
         </header>
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4" aria-label="관리 메뉴">
-          <AdminLinkCard
-            href="/admin/satisfaction"
-            icon={<MessageSquareText size={24} />}
-            title="회원 만족도 관리"
-            description="회원 만족도 대시보드, 응답 내역, 질문, 설문 회차, 직원을 관리합니다."
-          />
-          <AdminLinkCard
-            href="/admin/trainer-reviews"
-            icon={<Star size={24} />}
-            title="PT 평가 관리"
-            description="트레이너별 회원 평가와 개선 피드백을 확인합니다."
-          />
-          <AdminLinkCard
-            href="/admin/trainers"
-            icon={<UsersRound size={24} />}
-            title="트레이너 관리"
-            description="PT 평가에 노출되는 트레이너 정보를 관리합니다."
-          />
-          <AdminLinkCard
-            href="/admin/surveys"
-            icon={<ClipboardList size={24} />}
-            title="기존 설문 관리"
-            description="PT 사전 설문 제출 현황과 상담 진행 상태를 관리합니다."
-          />
-        </section>
-
         <section className="rounded-3xl border border-oatmeal bg-white p-5 shadow-soft sm:p-7">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-clay">SATISFACTION SUMMARY</p>
-              <h2 className="mt-2 text-2xl font-bold">회원 만족도 조사 요약</h2>
-            </div>
-            <Link href="/admin/satisfaction" className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl bg-charcoal px-4 text-sm font-bold text-ivory transition hover:bg-cocoa">
-              상세 보기
-              <ArrowRight size={16} aria-hidden />
-            </Link>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-clay">SATISFACTION SUMMARY</p>
+            <h2 className="mt-2 text-2xl font-bold">분기별 설문조사 간단 데이터</h2>
+            <p className="mt-2 text-sm leading-6 text-charcoal/60">상세 응답과 설문 설정 관리는 좌측 메뉴의 분기별 설문조사에서 진행합니다.</p>
           </div>
 
           {satisfactionError ? <ErrorBanner message={satisfactionError} /> : null}
@@ -222,15 +170,10 @@ export function AdminHome() {
         </section>
 
         <section className="rounded-3xl border border-oatmeal bg-white p-5 shadow-soft sm:p-7">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-clay">PT REVIEW SUMMARY</p>
-              <h2 className="mt-2 text-2xl font-bold">PT 평가 요약</h2>
-            </div>
-            <Link href="/admin/trainer-reviews" className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl bg-charcoal px-4 text-sm font-bold text-ivory transition hover:bg-cocoa">
-              평가 관리
-              <ArrowRight size={16} aria-hidden />
-            </Link>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-clay">PT REVIEW SUMMARY</p>
+            <h2 className="mt-2 text-2xl font-bold">트레이너 평가 간단 데이터</h2>
+            <p className="mt-2 text-sm leading-6 text-charcoal/60">평가 상세와 트레이너별 응답 관리는 좌측 메뉴의 트레이너 평가에서 진행합니다.</p>
           </div>
 
           {trainerError ? <ErrorBanner message={trainerError} /> : null}
@@ -244,36 +187,7 @@ export function AdminHome() {
           </div>
         </section>
       </div>
-    </main>
-  );
-}
-
-function AdminLinkCard({
-  href,
-  icon,
-  title,
-  description,
-}: {
-  href: string;
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className="group flex min-h-44 flex-col justify-between rounded-3xl border border-oatmeal bg-white p-5 shadow-soft transition hover:border-sand hover:bg-[#FFFCF7]"
-    >
-      <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-charcoal text-ivory">{icon}</span>
-      <span>
-        <strong className="block text-xl font-bold">{title}</strong>
-        <span className="mt-2 block text-sm leading-6 text-charcoal/62">{description}</span>
-      </span>
-      <span className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-cocoa">
-        이동하기
-        <ArrowRight size={16} aria-hidden className="transition group-hover:translate-x-1" />
-      </span>
-    </Link>
+    </div>
   );
 }
 

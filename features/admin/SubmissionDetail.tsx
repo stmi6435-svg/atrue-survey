@@ -1,11 +1,10 @@
 "use client";
 
-import { ArrowLeft, LogOut, Trash2 } from "lucide-react";
+import { ArrowLeft, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { deleteSurveySubmission, getSurveySubmissionById, updateSurveyStatus } from "@/lib/storage/surveyRepository";
-import { getSupabaseClient } from "@/lib/supabase";
 import { BRANCH_LABELS, STATUS_OPTIONS, SURVEY_LABELS } from "@/features/survey/constants";
 import type { SubmissionStatus, SurveySubmission } from "@/features/survey/types";
 
@@ -59,19 +58,13 @@ export function SubmissionDetail({ id }: { id: string }) {
     }
   }
 
-  async function handleLogout() {
-    const supabase = getSupabaseClient();
-    await supabase.auth.signOut();
-    router.replace("/admin/login");
-  }
-
   return (
-    <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-5xl">
+    <div>
+      <div className="max-w-5xl">
         <header className="mb-6 rounded-[28px] border border-oatmeal bg-ivory/95 p-5 shadow-soft sm:p-7">
           <Link href="/admin/surveys" className="inline-flex items-center gap-2 text-sm font-bold text-cocoa">
             <ArrowLeft size={16} aria-hidden />
-            관리자 목록
+            PT 사전 설문조사 목록
           </Link>
           <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -91,14 +84,6 @@ export function SubmissionDetail({ id }: { id: string }) {
                   삭제
                 </button>
               ) : null}
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-charcoal px-5 text-sm font-bold text-ivory transition hover:bg-cocoa"
-              >
-                <LogOut size={16} aria-hidden />
-                로그아웃
-              </button>
             </div>
           </div>
           {errorMessage ? <p className="mt-4 text-sm font-semibold text-clay">{errorMessage}</p> : null}
@@ -176,7 +161,7 @@ export function SubmissionDetail({ id }: { id: string }) {
           </div>
         )}
       </div>
-    </main>
+    </div>
   );
 }
 

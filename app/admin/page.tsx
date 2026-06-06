@@ -1,10 +1,13 @@
+import { AdminLayout } from "@/components/admin/AdminLayout";
 import { AdminAuthGuard } from "@/features/admin/AdminAuthGuard";
 import { AdminHome } from "@/features/admin/AdminHome";
 
 export default function AdminPage() {
   return (
     <AdminAuthGuard>
-      <AdminHome />
+      <AdminLayout>
+        <AdminHome />
+      </AdminLayout>
     </AdminAuthGuard>
   );
 }

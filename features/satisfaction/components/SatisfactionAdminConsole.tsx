@@ -1224,7 +1224,7 @@ export function SatisfactionAdminConsole({ activeTab }: { activeTab: AdminTab })
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-clay">SATISFACTION ADMIN</p>
-            <h1 className="mt-2 text-3xl font-bold leading-tight sm:text-4xl">회원 만족도 관리</h1>
+            <h1 className="mt-2 text-3xl font-bold leading-tight sm:text-4xl">분기별 설문조사 관리</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-charcoal/65">
               설문 회차, 질문, 선택지, 직원, 응답 처리를 직접 운영하는 관리형 설문 시스템입니다.
             </p>
@@ -1239,12 +1239,12 @@ export function SatisfactionAdminConsole({ activeTab }: { activeTab: AdminTab })
               새로고침
             </button>
             <Link href="/admin" className="inline-flex h-10 items-center justify-center rounded-2xl border border-oatmeal bg-ivory px-4 text-sm font-bold text-cocoa transition hover:border-sand">
-              통합 관리자 홈
+              대시보드
             </Link>
           </div>
         </div>
 
-        <nav className="mt-6 flex flex-wrap gap-2" aria-label="회원 만족도 관리 메뉴">
+        <nav className="mt-6 flex flex-wrap gap-2" aria-label="분기별 설문조사 관리 메뉴">
           {TAB_LINKS.map((link) => (
             <Link
               key={link.tab}

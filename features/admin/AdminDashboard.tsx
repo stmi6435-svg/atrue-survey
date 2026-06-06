@@ -1,12 +1,10 @@
 "use client";
 
-import { ClipboardList, LogOut, Phone, Trash2, UserRound } from "lucide-react";
+import { ClipboardList, Phone, Trash2, UserRound } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { deleteSurveySubmission, getSurveySubmissions, updateSurveyStatus } from "@/lib/storage/surveyRepository";
-import { getSupabaseClient } from "@/lib/supabase";
 import { BRANCH_LABELS, BRANCH_OPTIONS, STATUS_OPTIONS, SURVEY_LABELS } from "@/features/survey/constants";
 import type { BranchId, SubmissionStatus, SurveySubmission } from "@/features/survey/types";
 
@@ -16,7 +14,6 @@ type ChartDatum = { name: string; value: number };
 const chartColors = ["#262320", "#B67854", "#D7B98D", "#6F553C", "#EFE0CD", "#8D6E52"];
 
 export function AdminDashboard() {
-  const router = useRouter();
   const [submissions, setSubmissions] = useState<SurveySubmission[]>([]);
   const [selectedBranch, setSelectedBranch] = useState<BranchFilter>("all");
   const [isLoading, setIsLoading] = useState(true);
@@ -95,45 +92,25 @@ export function AdminDashboard() {
     }
   }
 
-  async function handleLogout() {
-    const supabase = getSupabaseClient();
-    await supabase.auth.signOut();
-    router.replace("/admin/login");
-  }
-
   return (
-    <main className="min-h-screen bg-[#FFF9EF] px-4 py-5 text-[#262320] sm:px-6 sm:py-8 lg:px-8">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
+    <div className="text-[#262320]">
+      <div className="flex w-full flex-col gap-6">
         <header className="rounded-3xl border border-[#EFE0CD] bg-[#FFF9EF] p-5 shadow-[0_18px_60px_rgba(38,35,32,0.10)] sm:p-7">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#B67854]">ATRUEGYM ADMIN</p>
-              <h1 className="mt-2 text-3xl font-bold leading-tight text-[#262320] sm:text-4xl">지점별 설문 대시보드</h1>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#B67854]">PT PRE-SURVEY</p>
+              <h1 className="mt-2 text-3xl font-bold leading-tight text-[#262320] sm:text-4xl">PT 사전 설문조사 관리</h1>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-[#262320]/65">
                 지점별 설문 현황과 주요 응답 분포를 확인하고, 상담 진행 상태를 빠르게 관리합니다.
               </p>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
               <Link
-                href="/admin"
-                className="inline-flex h-11 items-center justify-center rounded-2xl border border-[#EFE0CD] bg-white px-5 text-sm font-bold text-[#262320] shadow-sm transition hover:border-[#6F553C]"
-              >
-                통합 관리자
-              </Link>
-              <Link
                 href="/"
                 className="inline-flex h-11 items-center justify-center rounded-2xl border border-[#EFE0CD] bg-white px-5 text-sm font-bold text-[#262320] shadow-sm transition hover:border-[#6F553C]"
               >
                 설문 화면
               </Link>
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#262320] px-5 text-sm font-bold text-[#FFF9EF] shadow-sm transition hover:bg-[#6F553C]"
-              >
-                <LogOut size={16} aria-hidden />
-                로그아웃
-              </button>
             </div>
           </div>
 
@@ -188,7 +165,7 @@ export function AdminDashboard() {
           )}
         </section>
       </div>
-    </main>
+    </div>
   );
 }
 
