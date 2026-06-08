@@ -18,6 +18,7 @@ import {
   Star,
   Trash2,
   UsersRound,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
@@ -1747,6 +1748,30 @@ function ResponsesView({
 }) {
   const selectedAnswers = selectedResponse ? answers.filter((answer) => answer.response_id === selectedResponse.id) : [];
   const selectedEvents = selectedResponse ? events.filter((event) => event.response_id === selectedResponse.id) : [];
+  const selectedSurveyTitle = selectedResponse ? surveys.find((survey) => survey.id === selectedResponse.survey_id)?.title ?? "알 수 없는 설문" : "";
+  const selectedDraft = selectedResponse ? responseDrafts[selectedResponse.id] : undefined;
+
+  useEffect(() => {
+    if (!selectedResponse) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        onSelectResponse(null);
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onSelectResponse, selectedResponse]);
 
   return (
     <div className="grid gap-5">
@@ -1872,42 +1897,164 @@ function ResponsesView({
       </section>
 
       {selectedResponse ? (
-        <section className="rounded-3xl border border-oatmeal bg-white p-5 shadow-soft">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-bold">응답 상세</h2>
-              <p className="mt-1 text-sm text-charcoal/60">
-                {formatDate(selectedResponse.submitted_at)} · {getBranchName(branches, selectedResponse.branch_id)}
-              </p>
-            </div>
-            <button type="button" onClick={() => onSelectResponse(null)} className="rounded-2xl border border-oatmeal px-3 py-2 text-sm font-bold">
-              닫기
-            </button>
+        <ResponseDetailModal
+          answers={selectedAnswers}
+          branchName={getBranchName(branches, selectedResponse.branch_id)}
+          events={selectedEvents}
+          optionMap={optionMap}
+          questionMap={questionMap}
+          response={selectedResponse}
+          responseDraft={selectedDraft}
+          staffMap={staffMap}
+          surveyTitle={selectedSurveyTitle}
+          onClose={() => onSelectResponse(null)}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function ResponseDetailModal({
+  answers,
+  branchName,
+  events,
+  optionMap,
+  questionMap,
+  response,
+  responseDraft,
+  staffMap,
+  surveyTitle,
+  onClose,
+}: {
+  answers: SatisfactionAnswer[];
+  branchName: string;
+  events: SatisfactionResponseEvent[];
+  optionMap: Map<string, SatisfactionQuestionOption>;
+  questionMap: Map<string, SatisfactionQuestion>;
+  response: SatisfactionResponse;
+  responseDraft?: ResponseDraft;
+  staffMap: Map<string, Staff>;
+  surveyTitle: string;
+  onClose: () => void;
+}) {
+  const displayStatus = responseDraft?.status ?? response.status;
+  const displayAssignedTo = responseDraft?.assigned_to || response.assigned_to || "-";
+  const displayAdminNote = responseDraft?.admin_note || response.admin_note || "-";
+  const ratingAnswers = answers.filter((answer) => getAnswerQuestionType(answer, questionMap) === "rating");
+  const choiceAnswers = answers.filter((answer) => {
+    const type = getAnswerQuestionType(answer, questionMap);
+    return type === "single_choice" || type === "multiple_choice";
+  });
+  const staffChoiceAnswers = answers.filter((answer) => getAnswerQuestionType(answer, questionMap) === "staff_choice");
+  const textAnswers = answers.filter((answer) => {
+    const type = getAnswerQuestionType(answer, questionMap);
+    return type === "text_short" || type === "text_long";
+  });
+  const groupedIds = new Set([...ratingAnswers, ...choiceAnswers, ...staffChoiceAnswers, ...textAnswers].map((answer) => answer.id));
+  const otherAnswers = answers.filter((answer) => !groupedIds.has(answer.id));
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
+      <button type="button" aria-label="응답 상세 닫기" className="absolute inset-0 h-full w-full bg-black/55" onClick={onClose} />
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="satisfaction-response-detail-title"
+        className="relative z-10 flex max-h-[85vh] w-[calc(100%-32px)] max-w-4xl flex-col overflow-hidden rounded-3xl border border-oatmeal bg-white shadow-[0_24px_90px_rgba(38,35,32,0.28)]"
+      >
+        <header className="flex items-start justify-between gap-4 border-b border-oatmeal px-5 py-4 sm:px-6">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-clay">RESPONSE DETAIL</p>
+            <h2 id="satisfaction-response-detail-title" className="mt-1 text-2xl font-black">
+              응답 상세
+            </h2>
+            <p className="mt-1 text-sm text-charcoal/60">
+              {formatDate(response.submitted_at)} · {branchName}
+            </p>
+          </div>
+          <button
+            type="button"
+            aria-label="응답 상세 닫기"
+            onClick={onClose}
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-oatmeal bg-white text-cocoa transition hover:border-sand"
+          >
+            <X size={18} aria-hidden />
+          </button>
+        </header>
+
+        <div className="overflow-y-auto px-5 pb-5 pt-4 sm:px-6">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <DetailMeta label="제출일" value={formatDate(response.submitted_at)} />
+            <DetailMeta label="지점" value={branchName} />
+            <DetailMeta label="설문 회차" value={surveyTitle} />
+            <DetailMeta label="응답 상태" value={getResponseStatusLabel(displayStatus)} />
+            <DetailMeta label="담당자" value={displayAssignedTo} />
+            <DetailMeta label="관리자 메모" value={displayAdminNote} wide />
           </div>
 
-          <div className="mt-4 grid gap-3">
-            {selectedAnswers.map((answer) => (
-              <article key={answer.id} className="rounded-2xl border border-oatmeal bg-ivory px-4 py-3">
-                <p className="text-sm font-bold text-cocoa">{getAnswerQuestionText(answer, questionMap)}</p>
-                <p className="mt-2 whitespace-pre-line text-base font-bold">{getAnswerDisplayValue(answer, questionMap, optionMap, staffMap)}</p>
-              </article>
-            ))}
+          <div className="mt-5 grid gap-4">
+            <ResponseAnswerSection answers={ratingAnswers} title="평점 응답" questionMap={questionMap} optionMap={optionMap} staffMap={staffMap} />
+            <ResponseAnswerSection answers={choiceAnswers} title="선택형 응답" questionMap={questionMap} optionMap={optionMap} staffMap={staffMap} />
+            <ResponseAnswerSection answers={staffChoiceAnswers} title="직원 선택형 응답" questionMap={questionMap} optionMap={optionMap} staffMap={staffMap} />
+            <ResponseAnswerSection answers={textAnswers} title="주관식 응답" questionMap={questionMap} optionMap={optionMap} staffMap={staffMap} />
+            <ResponseAnswerSection answers={otherAnswers} title="기타 응답" questionMap={questionMap} optionMap={optionMap} staffMap={staffMap} />
           </div>
 
           <div className="mt-5 rounded-2xl border border-oatmeal bg-white px-4 py-4">
             <h3 className="text-base font-bold">처리 이벤트</h3>
-            {selectedEvents.length === 0 ? <p className="mt-2 text-sm text-charcoal/60">기록된 이벤트가 없습니다.</p> : null}
+            {events.length === 0 ? <p className="mt-2 text-sm text-charcoal/60">기록된 이벤트가 없습니다.</p> : null}
             <div className="mt-3 grid gap-2">
-              {selectedEvents.map((event) => (
+              {events.map((event) => (
                 <p key={event.id} className="rounded-xl bg-ivory px-3 py-2 text-sm">
                   {formatDate(event.created_at)} · {event.event_type} · {event.previous_status ?? "-"} → {event.new_status ?? "-"}
                 </p>
               ))}
             </div>
           </div>
-        </section>
-      ) : null}
+        </div>
+      </section>
     </div>
+  );
+}
+
+function DetailMeta({ label, value, wide = false }: { label: string; value: string; wide?: boolean }) {
+  return (
+    <div className={`rounded-2xl border border-oatmeal bg-ivory px-4 py-3 ${wide ? "sm:col-span-2 lg:col-span-1" : ""}`}>
+      <p className="text-xs font-bold uppercase tracking-[0.12em] text-cocoa">{label}</p>
+      <p className="mt-1 whitespace-pre-line text-sm font-bold leading-6 text-charcoal">{value || "-"}</p>
+    </div>
+  );
+}
+
+function ResponseAnswerSection({
+  answers,
+  optionMap,
+  questionMap,
+  staffMap,
+  title,
+}: {
+  answers: SatisfactionAnswer[];
+  optionMap: Map<string, SatisfactionQuestionOption>;
+  questionMap: Map<string, SatisfactionQuestion>;
+  staffMap: Map<string, Staff>;
+  title: string;
+}) {
+  if (answers.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="rounded-2xl border border-oatmeal bg-white px-4 py-4">
+      <h3 className="text-base font-bold">{title}</h3>
+      <div className="mt-3 grid gap-3">
+        {answers.map((answer) => (
+          <article key={answer.id} className="rounded-2xl border border-oatmeal bg-ivory px-4 py-3">
+            <p className="text-sm font-bold text-cocoa">{getAnswerQuestionText(answer, questionMap)}</p>
+            <p className="mt-2 whitespace-pre-line text-base font-bold">{getAnswerDisplayValue(answer, questionMap, optionMap, staffMap)}</p>
+          </article>
+        ))}
+      </div>
+    </section>
   );
 }
 
