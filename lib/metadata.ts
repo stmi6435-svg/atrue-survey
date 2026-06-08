@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const SITE_NAME = "어트루짐";
 
-export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+export const SITE_URL = "https://atrue-survey.vercel.app";
 
 export const metadataBase = new URL(SITE_URL);
 
@@ -47,7 +47,7 @@ export function createPublicPageMetadata(page: PublicPageMetadata): Metadata {
       type: "website",
     },
     twitter: {
-      card: "summary",
+      card: "summary_large_image",
       title: page.title,
       description: page.description,
     },

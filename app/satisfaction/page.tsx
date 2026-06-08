@@ -1,8 +1,22 @@
 import type { Metadata } from "next";
 import { SatisfactionForm } from "@/features/satisfaction/components/SatisfactionForm";
-import { createPublicPageMetadata, PUBLIC_PAGE_METADATA } from "@/lib/metadata";
+import { createPublicPageMetadata, PUBLIC_PAGE_METADATA, SITE_NAME, SITE_URL } from "@/lib/metadata";
 
-export const metadata: Metadata = createPublicPageMetadata(PUBLIC_PAGE_METADATA.satisfaction);
+export const metadata: Metadata = {
+  ...createPublicPageMetadata(PUBLIC_PAGE_METADATA.satisfaction),
+  openGraph: {
+    title: PUBLIC_PAGE_METADATA.satisfaction.title,
+    description: PUBLIC_PAGE_METADATA.satisfaction.description,
+    url: `${SITE_URL}/satisfaction`,
+    siteName: SITE_NAME,
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: PUBLIC_PAGE_METADATA.satisfaction.title,
+    description: PUBLIC_PAGE_METADATA.satisfaction.description,
+  },
+};
 
 export default function SatisfactionPage() {
   return (

@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
-import { createPublicPageMetadata, metadataBase, PUBLIC_PAGE_METADATA } from "@/lib/metadata";
+import { metadataBase, PUBLIC_PAGE_METADATA } from "@/lib/metadata";
 import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase,
-  ...createPublicPageMetadata(PUBLIC_PAGE_METADATA.home),
+  title: PUBLIC_PAGE_METADATA.home.title,
+  description: PUBLIC_PAGE_METADATA.home.description,
 };
 
 export default function RootLayout({
