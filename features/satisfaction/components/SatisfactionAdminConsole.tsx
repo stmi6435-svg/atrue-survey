@@ -360,7 +360,12 @@ function getAnswerQuestionText(answer: SatisfactionAnswer, questionMap: Map<stri
 }
 
 function getAnswerQuestionType(answer: SatisfactionAnswer, questionMap: Map<string, SatisfactionQuestion>) {
-  return (answer.question_type_snapshot || questionMap.get(answer.question_id)?.question_type || "") as QuestionType | "";
+  return (answer.question_type_snapshot?.trim() || questionMap.get(answer.question_id)?.question_type || "") as QuestionType | "";
+}
+
+function getAnswerCategory(answer: SatisfactionAnswer, questionMap: Map<string, SatisfactionQuestion>) {
+  const category = questionMap.get(answer.question_id)?.category;
+  return CATEGORY_OPTIONS.includes(category as QuestionCategory) ? (category as QuestionCategory) : "other";
 }
 
 function getAnswerOptionText(answer: SatisfactionAnswer, optionMap: Map<string, SatisfactionQuestionOption>) {
@@ -402,7 +407,8 @@ function getAnswerDisplayValue(answer: SatisfactionAnswer, questionMap: Map<stri
   const questionType = getAnswerQuestionType(answer, questionMap);
 
   if (questionType === "rating") {
-    return answer.rating_value ? `${answer.rating_value}점` : "-";
+    const ratingValue = answer.rating_value ?? 0;
+    return ratingValue > 0 ? `${"★".repeat(ratingValue)}${"☆".repeat(5 - ratingValue)} ${ratingValue}점` : "-";
   }
 
   if (questionType === "text_short" || questionType === "text_long") {
@@ -1746,10 +1752,77 @@ function ResponsesView({
   onSurveyFilterChange: (value: string) => void;
   onTextOnlyChange: (value: boolean) => void;
 }) {
-  const selectedAnswers = selectedResponse ? answers.filter((answer) => answer.response_id === selectedResponse.id) : [];
+  const [detailAnswers, setDetailAnswers] = useState<SatisfactionAnswer[]>([]);
+  const [isLoadingDetailAnswers, setIsLoadingDetailAnswers] = useState(false);
+  const selectedAnswers = selectedResponse ? detailAnswers : [];
   const selectedEvents = selectedResponse ? events.filter((event) => event.response_id === selectedResponse.id) : [];
   const selectedSurveyTitle = selectedResponse ? surveys.find((survey) => survey.id === selectedResponse.survey_id)?.title ?? "알 수 없는 설문" : "";
   const selectedDraft = selectedResponse ? responseDrafts[selectedResponse.id] : undefined;
+
+  useEffect(() => {
+    if (!selectedResponse) {
+      setDetailAnswers([]);
+      setIsLoadingDetailAnswers(false);
+      return;
+    }
+
+    let isMounted = true;
+    const responseId = selectedResponse.id;
+    const preloadedAnswers = answers.filter((answer) => answer.response_id === responseId);
+    console.log("open response detail", {
+      responseId,
+      preloadedAnswersLength: preloadedAnswers.length,
+    });
+    setDetailAnswers(preloadedAnswers);
+    setIsLoadingDetailAnswers(true);
+
+    async function loadDetailAnswers() {
+      try {
+        const { data, error } = await getSupabaseClient()
+          .from("satisfaction_answers")
+          .select("*")
+          .eq("response_id", responseId)
+          .order("created_at", { ascending: true });
+
+        if (error) {
+          throw error;
+        }
+
+        console.log("detail answers loaded", {
+          responseId,
+          answersLength: data?.length ?? 0,
+          answers: data ?? [],
+        });
+
+        if (isMounted) {
+          setDetailAnswers(data ?? []);
+        }
+      } catch (error) {
+        const supabaseError = error as { code?: unknown; message?: unknown; details?: unknown; hint?: unknown };
+        console.error("응답 상세 답변 조회 실패", {
+          responseId,
+          code: supabaseError.code,
+          message: supabaseError.message,
+          details: supabaseError.details,
+          hint: supabaseError.hint,
+          raw: error,
+        });
+        if (isMounted) {
+          setDetailAnswers(preloadedAnswers);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingDetailAnswers(false);
+        }
+      }
+    }
+
+    void loadDetailAnswers();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [answers, selectedResponse]);
 
   useEffect(() => {
     if (!selectedResponse) {
@@ -1870,7 +1943,14 @@ function ResponsesView({
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex gap-2">
-                          <button type="button" onClick={() => onSelectResponse(response.id)} className="rounded-2xl border border-oatmeal px-3 py-2 text-xs font-bold">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              console.log("detail button responseId", response.id);
+                              onSelectResponse(response.id);
+                            }}
+                            className="rounded-2xl border border-oatmeal px-3 py-2 text-xs font-bold"
+                          >
                             상세
                           </button>
                           <button type="button" onClick={() => void onSaveResponse(response.id)} className="rounded-2xl bg-charcoal px-3 py-2 text-xs font-bold text-ivory">
@@ -1901,6 +1981,7 @@ function ResponsesView({
           answers={selectedAnswers}
           branchName={getBranchName(branches, selectedResponse.branch_id)}
           events={selectedEvents}
+          isLoadingAnswers={isLoadingDetailAnswers}
           optionMap={optionMap}
           questionMap={questionMap}
           response={selectedResponse}
@@ -1918,6 +1999,7 @@ function ResponseDetailModal({
   answers,
   branchName,
   events,
+  isLoadingAnswers,
   optionMap,
   questionMap,
   response,
@@ -1929,6 +2011,7 @@ function ResponseDetailModal({
   answers: SatisfactionAnswer[];
   branchName: string;
   events: SatisfactionResponseEvent[];
+  isLoadingAnswers: boolean;
   optionMap: Map<string, SatisfactionQuestionOption>;
   questionMap: Map<string, SatisfactionQuestion>;
   response: SatisfactionResponse;
@@ -1940,18 +2023,10 @@ function ResponseDetailModal({
   const displayStatus = responseDraft?.status ?? response.status;
   const displayAssignedTo = responseDraft?.assigned_to || response.assigned_to || "-";
   const displayAdminNote = responseDraft?.admin_note || response.admin_note || "-";
-  const ratingAnswers = answers.filter((answer) => getAnswerQuestionType(answer, questionMap) === "rating");
-  const choiceAnswers = answers.filter((answer) => {
-    const type = getAnswerQuestionType(answer, questionMap);
-    return type === "single_choice" || type === "multiple_choice";
-  });
-  const staffChoiceAnswers = answers.filter((answer) => getAnswerQuestionType(answer, questionMap) === "staff_choice");
-  const textAnswers = answers.filter((answer) => {
-    const type = getAnswerQuestionType(answer, questionMap);
-    return type === "text_short" || type === "text_long";
-  });
-  const groupedIds = new Set([...ratingAnswers, ...choiceAnswers, ...staffChoiceAnswers, ...textAnswers].map((answer) => answer.id));
-  const otherAnswers = answers.filter((answer) => !groupedIds.has(answer.id));
+  const answerSections = CATEGORY_OPTIONS.map((category) => ({
+    category,
+    answers: answers.filter((answer) => getAnswerCategory(answer, questionMap) === category),
+  })).filter((section) => section.answers.length > 0);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
@@ -1993,11 +2068,20 @@ function ResponseDetailModal({
           </div>
 
           <div className="mt-5 grid gap-4">
-            <ResponseAnswerSection answers={ratingAnswers} title="평점 응답" questionMap={questionMap} optionMap={optionMap} staffMap={staffMap} />
-            <ResponseAnswerSection answers={choiceAnswers} title="선택형 응답" questionMap={questionMap} optionMap={optionMap} staffMap={staffMap} />
-            <ResponseAnswerSection answers={staffChoiceAnswers} title="직원 선택형 응답" questionMap={questionMap} optionMap={optionMap} staffMap={staffMap} />
-            <ResponseAnswerSection answers={textAnswers} title="주관식 응답" questionMap={questionMap} optionMap={optionMap} staffMap={staffMap} />
-            <ResponseAnswerSection answers={otherAnswers} title="기타 응답" questionMap={questionMap} optionMap={optionMap} staffMap={staffMap} />
+            {isLoadingAnswers ? <EmptyBox message="저장된 답변을 불러오는 중입니다." /> : null}
+            {!isLoadingAnswers && answers.length === 0 ? <EmptyBox message="저장된 답변이 없습니다." /> : null}
+            {!isLoadingAnswers && answers.length > 0
+              ? answerSections.map((section) => (
+                  <ResponseAnswerSection
+                    key={section.category}
+                    answers={section.answers}
+                    title={CATEGORY_LABELS[section.category]}
+                    questionMap={questionMap}
+                    optionMap={optionMap}
+                    staffMap={staffMap}
+                  />
+                ))
+              : null}
           </div>
 
           <div className="mt-5 rounded-2xl border border-oatmeal bg-white px-4 py-4">
@@ -2050,12 +2134,79 @@ function ResponseAnswerSection({
         {answers.map((answer) => (
           <article key={answer.id} className="rounded-2xl border border-oatmeal bg-ivory px-4 py-3">
             <p className="text-sm font-bold text-cocoa">{getAnswerQuestionText(answer, questionMap)}</p>
-            <p className="mt-2 whitespace-pre-line text-base font-bold">{getAnswerDisplayValue(answer, questionMap, optionMap, staffMap)}</p>
+            <AnswerDisplay answer={answer} questionMap={questionMap} optionMap={optionMap} staffMap={staffMap} />
           </article>
         ))}
       </div>
     </section>
   );
+}
+
+function AnswerDisplay({
+  answer,
+  optionMap,
+  questionMap,
+  staffMap,
+}: {
+  answer: SatisfactionAnswer;
+  optionMap: Map<string, SatisfactionQuestionOption>;
+  questionMap: Map<string, SatisfactionQuestion>;
+  staffMap: Map<string, Staff>;
+}) {
+  const questionType = getAnswerQuestionType(answer, questionMap);
+
+  if (questionType === "rating") {
+    const ratingValue = answer.rating_value ?? 0;
+    return (
+      <p className="mt-2 text-lg font-black text-charcoal">
+        <span className="tracking-wide text-[#F6C343]">{ratingValue > 0 ? "★".repeat(ratingValue) : "☆☆☆☆☆"}</span>
+        <span className="tracking-wide text-[#D8CABA]">{ratingValue > 0 ? "☆".repeat(5 - ratingValue) : ""}</span>
+        <span className="ml-2 text-base text-charcoal">{ratingValue > 0 ? `${ratingValue}점` : "-"}</span>
+      </p>
+    );
+  }
+
+  if (questionType === "single_choice" || questionType === "multiple_choice") {
+    const labels = getChoiceAnswerLabels(answer, optionMap);
+    return (
+      <div className="mt-2 flex flex-wrap gap-2">
+        {labels.length > 0 ? (
+          labels.map((label) => (
+            <span key={`${answer.id}-${label}`} className="rounded-full bg-white px-3 py-1 text-sm font-black text-charcoal shadow-sm">
+              {label}
+            </span>
+          ))
+        ) : (
+          <span className="text-base font-bold text-charcoal">-</span>
+        )}
+      </div>
+    );
+  }
+
+  if (questionType === "staff_choice") {
+    return <p className="mt-2 whitespace-pre-line text-base font-bold">{getAnswerStaffText(answer, staffMap) || "없음"}</p>;
+  }
+
+  if (questionType === "text_short" || questionType === "text_long") {
+    return <p className="mt-2 whitespace-pre-line text-base font-bold">{answer.text_value?.trim() || "-"}</p>;
+  }
+
+  return <p className="mt-2 whitespace-pre-line text-base font-bold">{getAnswerDisplayValue(answer, questionMap, optionMap, staffMap)}</p>;
+}
+
+function getChoiceAnswerLabels(answer: SatisfactionAnswer, optionMap: Map<string, SatisfactionQuestionOption>) {
+  if (answer.option_text_snapshot?.trim()) {
+    return answer.option_text_snapshot
+      .split(",")
+      .map((label) => label.trim())
+      .filter(Boolean);
+  }
+
+  const values = answer.choice_values?.length ? answer.choice_values : answer.choice_value ? [answer.choice_value] : [];
+  return values.map((value) => {
+    const liveOption = Array.from(optionMap.values()).find((option) => option.option_value === value || option.option_text === value);
+    return liveOption?.option_text ?? value;
+  });
 }
 
 function QuestionsView({
