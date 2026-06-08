@@ -1,4 +1,8 @@
+import type { Metadata } from "next";
 import { ReviewForm } from "@/features/trainer-review/components/ReviewForm";
+import { createPublicPageMetadata, PUBLIC_PAGE_METADATA } from "@/lib/metadata";
+
+export const metadata: Metadata = createPublicPageMetadata(PUBLIC_PAGE_METADATA.trainerReview);
 
 export default function TrainerReviewPage() {
   return (

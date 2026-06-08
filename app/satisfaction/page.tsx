@@ -1,4 +1,8 @@
+import type { Metadata } from "next";
 import { SatisfactionForm } from "@/features/satisfaction/components/SatisfactionForm";
+import { createPublicPageMetadata, PUBLIC_PAGE_METADATA } from "@/lib/metadata";
+
+export const metadata: Metadata = createPublicPageMetadata(PUBLIC_PAGE_METADATA.satisfaction);
 
 export default function SatisfactionPage() {
   return (

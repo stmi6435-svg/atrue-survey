@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
+import { createPublicPageMetadata, metadataBase, PUBLIC_PAGE_METADATA } from "@/lib/metadata";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "어트루짐 PT 사전 설문",
-  description: "어트루짐 PT 체험권 및 상담 사전 설문 웹앱",
+  metadataBase,
+  ...createPublicPageMetadata(PUBLIC_PAGE_METADATA.home),
 };
 
 export default function RootLayout({
