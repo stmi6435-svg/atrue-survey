@@ -127,6 +127,58 @@ type DeleteSatisfactionResponseResult = {
   success: boolean;
 };
 
+type StaffChoicePurposeKey = "positive" | "improvement";
+
+type StaffChoiceStatRow = {
+  branchId: string;
+  branchName: string;
+  count: number;
+  key: string;
+  staffId: string | null;
+  staffName: string;
+  staffRole: string;
+};
+
+type StaffChoiceDebugRow = {
+  aggregationKey: string | null;
+  answerId: string;
+  finalPurpose: StaffChoicePurposeKey | null;
+  included: boolean;
+  inferredPurpose: StaffChoicePurposeKey | null;
+  isNoneSelection: boolean;
+  liveQuestionStaffChoicePurpose: StaffChoicePurpose | null;
+  liveQuestionText: string | null;
+  liveQuestionType: string | null;
+  liveStaffName: string | null;
+  questionTextSnapshot: string | null;
+  questionTypeSnapshot: string | null;
+  responseBranchId: string | null;
+  responseId: string;
+  responseSubmittedAt: string | null;
+  responseSurveyId: string | null;
+  skippedReason: string | null;
+  staffId: string | null;
+  staffName: string;
+  staffNameSnapshot: string | null;
+};
+
+type StaffChoiceStats = {
+  debug: {
+    improvementAnswers: number;
+    positiveAnswers: number;
+    skippedFilteredByResponse: number;
+    skippedNotStaffChoice: number;
+    skippedNoneAnswers: number;
+    snapshotOnlyAnswers: number;
+    staffIdAnswers: number;
+    totalStaffChoiceAnswers: number;
+    unknownPurposeAnswers: number;
+  };
+  debugRows: StaffChoiceDebugRow[];
+  improvement: StaffChoiceStatRow[];
+  positive: StaffChoiceStatRow[];
+};
+
 const EMPTY_DATA: AdminData = {
   branches: [],
   surveys: [],
@@ -520,48 +572,217 @@ function buildChoiceStats(questions: SatisfactionQuestion[], options: Satisfacti
     .filter((stat) => stat.rows.length > 0);
 }
 
-function buildStaffMentionRows(data: AdminData, scopedAnswers: SatisfactionAnswer[]) {
-  const questionMap = new Map(data.questions.map((question) => [question.id, question]));
-  const staffMap = new Map(data.staff.map((member) => [member.id, member]));
-  const rows = new Map<string, { key: string; name: string; role: string; branchName: string; positiveCount: number; improvementCount: number }>();
+function getStaffChoicePurpose(answer: SatisfactionAnswer, questionMap: Map<string, SatisfactionQuestion>): StaffChoicePurposeKey | null {
+  const question = questionMap.get(answer.question_id);
+  if (question?.staff_choice_purpose === "positive" || question?.staff_choice_purpose === "improvement") {
+    return question.staff_choice_purpose;
+  }
 
-  scopedAnswers.forEach((answer) => {
-    const question = questionMap.get(answer.question_id);
-    const questionText = getAnswerQuestionText(answer, questionMap);
-    const purpose = question?.staff_choice_purpose ?? (questionText.includes("개선") ? "improvement" : questionText.includes("친절") ? "positive" : null);
+  const snapshotQuestionText = answer.question_text_snapshot?.trim() ?? "";
+  if (snapshotQuestionText.includes("친절")) {
+    return "positive";
+  }
 
-    if ((purpose !== "positive" && purpose !== "improvement") || (!answer.staff_id && !answer.staff_name_snapshot)) {
-      return;
-    }
+  if (snapshotQuestionText.includes("개선")) {
+    return "improvement";
+  }
 
-    const staff = answer.staff_id ? staffMap.get(answer.staff_id) : undefined;
-    const name = answer.staff_name_snapshot?.trim() || staff?.name || "직원 정보 없음";
-    if (name === "없음") {
-      return;
-    }
+  const liveQuestionText = question?.question_text ?? "";
+  if (liveQuestionText.includes("친절")) {
+    return "positive";
+  }
 
-    const branchId = answer.staff_branch_id_snapshot || staff?.branch_id || "";
-    const role = answer.staff_role_snapshot || staff?.role || "";
-    const key = answer.staff_id ?? `${name}:${role}:${branchId}`;
-    const current = rows.get(key) ?? {
-      key,
-      name,
-      role: getRoleLabel(role),
-      branchName: branchId ? getBranchName(data.branches, branchId) : "-",
-      positiveCount: 0,
-      improvementCount: 0,
-    };
+  if (liveQuestionText.includes("개선")) {
+    return "improvement";
+  }
 
-    if (purpose === "positive") {
-      current.positiveCount += 1;
+  return null;
+}
+
+function isStaffChoiceAnswer(answer: SatisfactionAnswer, questionMap: Map<string, SatisfactionQuestion>) {
+  const question = questionMap.get(answer.question_id);
+  const snapshotType = answer.question_type_snapshot?.trim();
+  const snapshotQuestionText = answer.question_text_snapshot?.trim() ?? "";
+  const hasStaffId = Boolean(answer.staff_id);
+  const hasStaffSnapshot = Boolean(answer.staff_name_snapshot?.trim());
+
+  return (
+    snapshotType === "staff_choice" ||
+    question?.question_type === "staff_choice" ||
+    (hasStaffId && snapshotQuestionText.includes("직원")) ||
+    (hasStaffSnapshot &&
+      (snapshotQuestionText.includes("직원") || snapshotQuestionText.includes("친절") || snapshotQuestionText.includes("개선")))
+  );
+}
+
+function isNoneStaffChoiceAnswer(answer: SatisfactionAnswer) {
+  const snapshotName = answer.staff_name_snapshot?.trim();
+  const choiceValue = answer.choice_value?.trim().toLowerCase();
+  const optionValue = answer.option_value_snapshot?.trim().toLowerCase();
+  const noneValues = new Set(["none", "no_staff", "no-staff", "no staff", "null", "없음"]);
+
+  if (answer.staff_id) {
+    return false;
+  }
+
+  if (snapshotName && snapshotName !== "없음") {
+    return false;
+  }
+
+  if (snapshotName === "없음") {
+    return true;
+  }
+
+  return Boolean((choiceValue && noneValues.has(choiceValue)) || (optionValue && noneValues.has(optionValue)));
+}
+
+function normalizeStaffChoiceName(value: string) {
+  return value.trim();
+}
+
+function buildStaffChoiceStats({
+  answers,
+  branches,
+  questions,
+  responses,
+  staff,
+}: {
+  answers: SatisfactionAnswer[];
+  branches: Branch[];
+  questions: SatisfactionQuestion[];
+  responses: SatisfactionResponse[];
+  staff: Staff[];
+}): StaffChoiceStats {
+  const questionMap = new Map(questions.map((question) => [question.id, question]));
+  const responseMap = new Map(responses.map((response) => [response.id, response]));
+  const responseIds = new Set(responses.map((response) => response.id));
+  const staffMap = new Map(staff.map((member) => [member.id, member]));
+  const positiveRows = new Map<string, StaffChoiceStatRow>();
+  const improvementRows = new Map<string, StaffChoiceStatRow>();
+  const debugRows: StaffChoiceDebugRow[] = [];
+  const debug = {
+    totalStaffChoiceAnswers: 0,
+    positiveAnswers: 0,
+    improvementAnswers: 0,
+    staffIdAnswers: 0,
+    skippedFilteredByResponse: 0,
+    skippedNotStaffChoice: 0,
+    skippedNoneAnswers: 0,
+    snapshotOnlyAnswers: 0,
+    unknownPurposeAnswers: 0,
+  };
+
+  answers.forEach((answer) => {
+    const response = responseMap.get(answer.response_id);
+    const liveQuestion = questionMap.get(answer.question_id);
+    const liveStaff = answer.staff_id ? staffMap.get(answer.staff_id) : undefined;
+    const isScopedResponse = responseIds.has(answer.response_id);
+    const isStaffChoice = isStaffChoiceAnswer(answer, questionMap);
+    const inferredPurpose = getStaffChoicePurpose(answer, questionMap);
+    const isNoneSelection = isNoneStaffChoiceAnswer(answer);
+    const normalizedSnapshotName = answer.staff_name_snapshot ? normalizeStaffChoiceName(answer.staff_name_snapshot) : "";
+    const staffName = normalizedSnapshotName || liveStaff?.name || "알 수 없는 직원";
+    const aggregationKey = answer.staff_id ? `staff:${answer.staff_id}` : normalizedSnapshotName ? `snapshot:${normalizedSnapshotName}` : null;
+    let skippedReason: string | null = null;
+    let included = false;
+
+    if (!isScopedResponse) {
+      skippedReason = "filtered_by_response";
+      if (isStaffChoice) {
+        debug.skippedFilteredByResponse += 1;
+      }
+    } else if (!isStaffChoice) {
+      skippedReason = "not_staff_choice";
+      debug.skippedNotStaffChoice += 1;
+    } else if (!inferredPurpose) {
+      skippedReason = "purpose_unknown";
+      debug.totalStaffChoiceAnswers += 1;
+      debug.unknownPurposeAnswers += 1;
+    } else if (isNoneSelection) {
+      skippedReason = "none_selection";
+      debug.totalStaffChoiceAnswers += 1;
+      debug.skippedNoneAnswers += 1;
+      if (inferredPurpose === "positive") {
+        debug.positiveAnswers += 1;
+      } else {
+        debug.improvementAnswers += 1;
+      }
+    } else if (!answer.staff_id && !normalizedSnapshotName) {
+      skippedReason = "missing_staff_identity";
+      debug.totalStaffChoiceAnswers += 1;
+      debug.skippedNoneAnswers += 1;
+      if (inferredPurpose === "positive") {
+        debug.positiveAnswers += 1;
+      } else {
+        debug.improvementAnswers += 1;
+      }
     } else {
-      current.improvementCount += 1;
+      debug.totalStaffChoiceAnswers += 1;
+      if (inferredPurpose === "positive") {
+        debug.positiveAnswers += 1;
+      } else {
+        debug.improvementAnswers += 1;
+      }
+
+      if (answer.staff_id) {
+        debug.staffIdAnswers += 1;
+      } else {
+        debug.snapshotOnlyAnswers += 1;
+      }
+
+      const roleValue = answer.staff_role_snapshot?.trim() || liveStaff?.role || "";
+      const branchId = response?.branch_id || answer.staff_branch_id_snapshot || liveStaff?.branch_id || "";
+      const targetRows = inferredPurpose === "positive" ? positiveRows : improvementRows;
+      const current = targetRows.get(aggregationKey!) ?? {
+        branchId,
+        branchName: branchId ? getBranchName(branches, branchId) : "-",
+        count: 0,
+        key: aggregationKey!,
+        staffId: answer.staff_id ?? null,
+        staffName,
+        staffRole: roleValue ? getRoleLabel(roleValue) : "",
+      };
+
+      current.count += 1;
+      targetRows.set(aggregationKey!, current);
+      included = true;
     }
 
-    rows.set(key, current);
+    if (isStaffChoice || staffName.includes("허진혁") || answer.question_text_snapshot?.includes("친절")) {
+      debugRows.push({
+        aggregationKey,
+        answerId: answer.id,
+        finalPurpose: inferredPurpose,
+        included,
+        inferredPurpose,
+        isNoneSelection,
+        liveQuestionStaffChoicePurpose: liveQuestion?.staff_choice_purpose ?? null,
+        liveQuestionText: liveQuestion?.question_text ?? null,
+        liveQuestionType: liveQuestion?.question_type ?? null,
+        liveStaffName: liveStaff?.name ?? null,
+        questionTextSnapshot: answer.question_text_snapshot ?? null,
+        questionTypeSnapshot: answer.question_type_snapshot ?? null,
+        responseBranchId: response?.branch_id ?? null,
+        responseId: answer.response_id,
+        responseSubmittedAt: response?.submitted_at ?? null,
+        responseSurveyId: response?.survey_id ?? null,
+        skippedReason,
+        staffId: answer.staff_id ?? null,
+        staffName,
+        staffNameSnapshot: answer.staff_name_snapshot ?? null,
+      });
+    }
   });
 
-  return Array.from(rows.values()).sort((a, b) => b.positiveCount + b.improvementCount - (a.positiveCount + a.improvementCount));
+  const sortRows = (rows: Map<string, StaffChoiceStatRow>) =>
+    Array.from(rows.values()).sort((a, b) => b.count - a.count || a.staffName.localeCompare(b.staffName));
+
+  return {
+    debug,
+    debugRows,
+    positive: sortRows(positiveRows),
+    improvement: sortRows(improvementRows),
+  };
 }
 
 function buildRuleReport({
@@ -813,7 +1034,17 @@ export function SatisfactionAdminConsole({ activeTab }: { activeTab: AdminTab })
     () => choiceRate((question) => question.question_text.includes("계속") || question.question_text.includes("이용"), data.questions, scopedAnswers),
     [data.questions, scopedAnswers],
   );
-  const staffMentionRows = useMemo(() => buildStaffMentionRows(data, scopedAnswers), [data, scopedAnswers]);
+  const staffChoiceStats = useMemo(
+    () =>
+      buildStaffChoiceStats({
+        answers: data.answers,
+        branches: data.branches,
+        questions: data.questions,
+        responses: scopedResponses,
+        staff: data.staff,
+      }),
+    [data.answers, data.branches, data.questions, data.staff, scopedResponses],
+  );
   const choiceStats = useMemo(() => buildChoiceStats(data.questions, data.options, scopedAnswers), [data.questions, data.options, scopedAnswers]);
   const branchRows = useMemo(() => {
     return data.branches.map((branch) => {
@@ -831,6 +1062,21 @@ export function SatisfactionAdminConsole({ activeTab }: { activeTab: AdminTab })
       };
     });
   }, [data.branches, data.questions, scopedAnswers, scopedResponses]);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") {
+      return;
+    }
+
+    console.log("satisfaction staff choice stats", {
+      ...staffChoiceStats.debug,
+      positiveGroupedResult: staffChoiceStats.positive,
+      improvementGroupedResult: staffChoiceStats.improvement,
+    });
+    staffChoiceStats.debugRows.forEach((row) => {
+      console.log("[staff-choice-debug]", row);
+    });
+  }, [staffChoiceStats]);
 
   async function saveStaff(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1289,7 +1535,7 @@ export function SatisfactionAdminConsole({ activeTab }: { activeTab: AdminTab })
           recentResponses={scopedResponses.slice(0, 6)}
           retentionRate={retentionRate}
           responseCount={scopedResponses.length}
-          staffMentionRows={staffMentionRows}
+          staffChoiceStats={staffChoiceStats}
           surveyFilter={surveyFilter}
           surveys={data.surveys}
           totalAverage={totalAverage}
@@ -1474,6 +1720,38 @@ export function SatisfactionAdminConsole({ activeTab }: { activeTab: AdminTab })
   );
 }
 
+function StaffChoiceStatsCard({
+  emptyMessage,
+  rows,
+  title,
+}: {
+  emptyMessage: string;
+  rows: StaffChoiceStatRow[];
+  title: string;
+}) {
+  return (
+    <div className="rounded-3xl border border-oatmeal bg-white p-5 shadow-soft">
+      <h2 className="text-xl font-bold">{title}</h2>
+      <div className="mt-4 grid gap-2">
+        {rows.length === 0 ? <EmptyBox message={emptyMessage} /> : null}
+        {rows.slice(0, 8).map((row) => (
+          <article key={row.key} className="rounded-2xl border border-oatmeal bg-ivory px-4 py-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="font-bold">{row.staffName}</p>
+                <p className="mt-1 text-sm text-cocoa">
+                  {row.branchName} · {row.staffRole || "-"}
+                </p>
+              </div>
+              <p className="shrink-0 rounded-full bg-white px-3 py-1 text-sm font-bold text-charcoal">{row.count}회</p>
+            </div>
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function DashboardView({
   activeSurvey,
   branchFilter,
@@ -1491,7 +1769,7 @@ function DashboardView({
   recentResponses,
   responseCount,
   retentionRate,
-  staffMentionRows,
+  staffChoiceStats,
   surveyFilter,
   surveys,
   totalAverage,
@@ -1524,7 +1802,7 @@ function DashboardView({
   recentResponses: SatisfactionResponse[];
   responseCount: number;
   retentionRate: number | null;
-  staffMentionRows: Array<{ key: string; name: string; role: string; branchName: string; positiveCount: number; improvementCount: number }>;
+  staffChoiceStats: StaffChoiceStats;
   surveyFilter: string;
   surveys: SatisfactionSurvey[];
   totalAverage: number | null;
@@ -1645,24 +1923,11 @@ function DashboardView({
       </section>
 
       <section className="grid gap-4 xl:grid-cols-2">
-        <div className="rounded-3xl border border-oatmeal bg-white p-5 shadow-soft">
-          <h2 className="text-xl font-bold">직원별 친절/개선 언급 수</h2>
-          <div className="mt-4 grid gap-2">
-            {staffMentionRows.length === 0 ? <EmptyBox message="직원 선택 응답이 없습니다." /> : null}
-            {staffMentionRows.slice(0, 8).map((row) => (
-              <article key={row.key} className="rounded-2xl border border-oatmeal bg-ivory px-4 py-3">
-                <p className="font-bold">{row.name}</p>
-                <p className="mt-1 text-sm text-cocoa">
-                  {row.branchName} · {row.role}
-                </p>
-                <p className="mt-2 text-sm font-bold">
-                  친절 {row.positiveCount}회 · 개선 필요 {row.improvementCount}회
-                </p>
-              </article>
-            ))}
-          </div>
-        </div>
+        <StaffChoiceStatsCard emptyMessage="친절 직원 선택 응답이 없습니다." rows={staffChoiceStats.positive} title="직원별 친절 언급 수" />
+        <StaffChoiceStatsCard emptyMessage="개선 필요 직원 선택 응답이 없습니다." rows={staffChoiceStats.improvement} title="직원별 개선 필요 언급 수" />
+      </section>
 
+      <section className="grid gap-4">
         <div className="rounded-3xl border border-oatmeal bg-white p-5 shadow-soft">
           <h2 className="text-xl font-bold">선택형 응답 통계</h2>
           <div className="mt-4 grid gap-3">
